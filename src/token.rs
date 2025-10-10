@@ -1,0 +1,65 @@
+use logos::Logos;
+
+#[derive(Logos, Debug, PartialEq)]
+#[logos(skip r"[ \t\n]+")]
+pub(crate) enum Token {
+    // Keywords
+    #[token("var")] Var,
+    #[token("globalvar")] GlobalVar,
+    #[token("localvar")] LocalVar,
+    #[token("enum")] Enum,
+    #[token("function")] Function,
+    #[token("if")] If,
+    #[token("else")] Else,
+    #[token("switch")] Switch,
+    #[token("case")] Case,
+    #[token("default")] Default,
+    #[token("for")] For,
+    #[token("while")] While,
+    #[token("do")] Do,
+    #[token("break")] Break,
+    #[token("continue")] Continue,
+    #[token("return")] Return,
+    #[token("true")] True,
+    #[token("false")] False,
+    #[token("undefined")] Undefined,
+    #[token("null")] Null,
+    #[token("repeat")] Repeat,
+    #[token("with")] With,
+    #[token("self")] Self_,
+    #[token("other")] Other,
+
+    // Operators / punctuation
+    #[token("+")] Plus,
+    #[token("-")] Minus,
+    #[token("*")] Star,
+    #[token("/")] Slash,
+    #[token("%")] Percent,
+    #[token("=")] Equal,
+    #[token("==")] EqualEqual,
+    #[token("!=")] NotEqual,
+    #[token("<")] Less,
+    #[token("<=")] LessEqual,
+    #[token(">")] Greater,
+    #[token(">=")] GreaterEqual,
+    #[token("&&")] And,
+    #[token("||")] Or,
+    #[token("!")] Not,
+    #[token("++")] PlusPlus,
+    #[token("--")] MinusMinus,
+    #[token(";")] Semicolon,
+    #[token(",")] Comma,
+    #[token(".")] Dot,
+    #[token("(")] LeftParen,
+    #[token(")")] RightParen,
+    #[token("{")] LeftBrace,
+    #[token("}")] RightBrace,
+    #[token("[")] LeftBracket,
+    #[token("]")] RightBracket,
+
+    // Literals
+    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")] Identifier,
+    #[regex(r#""([^"\\]|\\.)*""#)] String,
+    #[regex(r"\d+(\.\d+)?")] Number,
+}
+
