@@ -1,0 +1,10 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/lee-orr/rusty-dev-containers/helix:0": {},
+    "ghcr.io/nils-geistmann/devcontainers-features/zsh:0": {},
+    "ghcr.io/georgofenbeck/features/lazygit-linuxbinary:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {}
+  }
+}
