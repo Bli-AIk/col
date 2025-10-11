@@ -4,6 +4,7 @@ use logos::Logos;
 #[logos(skip r"[ \t\n]+")]
 pub(crate) enum Token {
     // ---Keywords---
+    // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features.htm&rhsearch=globalvar
     #[token("var")]
     Var,
     #[token("globalvar")]
@@ -30,6 +31,8 @@ pub(crate) enum Token {
     While,
     #[token("do")]
     Do,
+    #[token("until")]
+    Until,
     #[token("break")]
     Break,
     #[token("continue")]
