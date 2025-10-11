@@ -3,6 +3,7 @@ use logos::Logos;
 use owo_colors::OwoColorize;
 use std::fs;
 
+mod parser;
 mod token;
 
 fn main() {
@@ -19,7 +20,10 @@ fn main() {
                     println!();
                 }
             }
-            Err(_) => println!("Error token encountered"),
+            Err(token) => {
+                let x = "Error token encountered";
+                println!("{} : {:?}", x.red(), token.red())
+            }
         }
     }
 }
