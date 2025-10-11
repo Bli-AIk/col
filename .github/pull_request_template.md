@@ -17,7 +17,7 @@
 <!--
 Please fill in the issue number related to this PR below.
 For example: Closes #123
-If there is no related issue, please fill in "None".
+If there is no related issue, please fill in "None" or "N/A".
 -->
 
 -
