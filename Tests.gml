@@ -3,11 +3,6 @@
 /// 目的: 覆盖变量/表达式/控制流/数组/函数/闭包/struct/enums/宏等语法特性
 /// 注意: 不使用内置函数 (例如 show_message, array_length, ds_* 等)
 
-/* ============= 宏 / 预处理 ============= */
-#macro MIN(a,b) ((a) < (b) ? (a) : (b))
-#macro MAX(a,b) ((a) > (b) ? (a) : (b))
-#macro SQUARE(x) ((x) * (x))
-
 /* ============= 枚举 ============= */
 enum Color {
     COLOR_NONE = -1,
@@ -66,12 +61,12 @@ function test_control_flow(x) {
         i += 1;
     }
 
-    // do...while
+    // do...until
     i = 0;
     do {
         result -= i;
         i += 1;
-    } while (i < 2);
+    } until (i < 2);
 
     // for
     var sum = 0;
@@ -231,13 +226,13 @@ function test_inheritance() {
 
 /* ============= 位运算与常量测试 ============= */
 function test_bit_ops() {
-    var x = 5; // 0b0101
-    var y = 3; // 0b0011
-    var andv = x & y;
-    var orv = x | y;
-    var xv = x ^ y;
-    var shl = x << 2;
-    var shr = x >> 1;
+    var x1 = 5; // 0b0101
+    var y1 = 3; // 0b0011
+    var andv = x1 & y1;
+    var orv = x1 | y1;
+    var xv = x1 ^ y1;
+    var shl = x1 << 2;
+    var shr = x1 >> 1;
     return andv + orv + xv + shl + shr;
 }
 
@@ -272,9 +267,6 @@ function compiler_sanity_run() {
         bits: v8
     };
 }
-
-/* ============= 演示宏运算 ============= */
-var macro_demo = MIN(10, 20) + MAX(10, 20) + SQUARE(3);
 
 /* ============= 小结：接口函数 ============= */
 // 以下函数可以从外部调用以测试编译器能否解析并链接这些符号
