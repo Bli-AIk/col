@@ -1,31 +1,13 @@
 use crate::token::Token;
 use logos::Logos;
+use owo_colors::OwoColorize;
+use std::fs;
 
 mod token;
 
 fn main() {
-    let mut lex = token::Token::lexer(
-        r#"var y;
-
-
-
-
-
-
-
-    var x = 123 + 456;
-    x == 123
-
-
-    q = "why"
-
-    air=1230;
-
-    repeat (5){
-        x++
-    }
-    "#,
-    );
+    let content = fs::read_to_string("Sample.gml").expect("Something went wrong reading the file");
+    let mut lex = token::Token::lexer(&content);
 
     while let Some(result) = lex.next() {
         match result {
@@ -33,7 +15,7 @@ fn main() {
                 if (token != Token::Newline) {
                     print!("{:?} ", token);
                 } else {
-                    print!("//{:?} ", token);
+                    print!("{:?} ", token.green());
                     println!();
                 }
             }
