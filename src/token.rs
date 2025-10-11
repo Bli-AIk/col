@@ -1,7 +1,7 @@
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq)]
-#[logos(skip r"[ \t\n]+")]
+#[logos(skip r"[ \t]+")]
 pub(crate) enum Token {
     // region ---Keywords---
     // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features.htm&rhsearch=globalvar
@@ -195,6 +195,8 @@ pub(crate) enum Token {
 
     // ----------------------------------------
     // region ---Punctuations---
+    #[regex(r"(?:\r\n|\n|\r)+")]
+    Newline,
     #[token(";")]
     Semicolon,
     #[token(",")]
