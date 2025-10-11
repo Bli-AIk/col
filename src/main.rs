@@ -7,12 +7,12 @@ mod token;
 
 fn main() {
     let content = fs::read_to_string("Sample.gml").expect("Something went wrong reading the file");
-    let mut lex = token::Token::lexer(&content);
+    let mut lex = Token::lexer(&content);
 
     while let Some(result) = lex.next() {
         match result {
             Ok(token) => {
-                if (token != Token::Newline) {
+                if token != Token::Newline {
                     print!("{:?} ", token);
                 } else {
                     print!("{:?} ", token.green());
