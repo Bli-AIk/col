@@ -1,6 +1,11 @@
-use crate::token::Token;
+use crate::token::*;
+use chumsky::{
+    input::{Stream, ValueInput},
+    prelude::*,
+};
 use logos::Logos;
 use owo_colors::OwoColorize;
+use parser::*;
 use std::fs;
 
 mod parser;
@@ -12,26 +17,31 @@ fn main() {
         Ok(data) => data,
         Err(e) => {
             eprintln!();
-            eprintln!("{} {}", format!("Failed to read '{}':", path).bright_red(), e);
+            eprintln!(
+                "{} {}",
+                format!("Failed to read '{}':", path).bright_red(),
+                e
+            );
             std::process::exit(1);
         }
     };
-    let mut lex = Token::lexer(&content);
 
-    while let Some(result) = lex.next() {
-        match result {
-            Ok(token) => {
-                if token != Token::Newline {
-                    print!("{:?} ", token);
-                } else {
-                    print!("{:?} ", token.green());
-                    println!();
-                }
+    let token_iter = Token::lexer(&content)
+        .spanned()
+        .map(|(tok, span)| match tok {
+            Ok(tok) => (tok, span.into()),
+            Err(_) => {
+                println!("Error token encountered: {:?}", &content[span.clone()]);
+                (Token::Error, span.into())
             }
-            Err(token) => {
-                let x = "Error token encountered :";
-                println!("{} {:?}", x.red(), token.red())
-            }
-        }
+        });
+
+    let token_stream =
+        Stream::from_iter(token_iter).map((0..content.len()).into(), |(t, s): (_, _)| (t, s));
+
+    println!();
+    match parser().parse(token_stream).into_result() {
+        Ok(expr) => println!("{} {:?}", "Parsed:".green(), expr),
+        Err(errs) => println!("{} {:?}", "Parse errors:".red(), errs.red()),
     }
 }

@@ -6,6 +6,7 @@ use logos::Logos;
 #[logos(skip r"/\*([^*]|\*[^/])*\*/")]
 #[derive(Clone)]
 pub(crate) enum Token<'a> {
+    Error,
     // region ---Keywords---
     // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features.htm&rhsearch=globalvar
     #[token("repeat")]
@@ -270,7 +271,7 @@ mod tests {
     }
 
     // ---------------------------
-    // 分类测试
+    // ClassificationTest
     // ---------------------------
 
     #[test]
