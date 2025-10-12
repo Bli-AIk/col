@@ -237,6 +237,144 @@ pub(crate) enum Token<'a> {
     Number(&'a str),
     // endregion
 }
+impl fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            // Error
+            Token::Error => write!(f, "Error"),
+
+            // region ---Keywords---
+            // ControlFlow
+            Token::Repeat => write!(f, "repeat"),
+            Token::While => write!(f, "while"),
+            Token::Do => write!(f, "do"),
+            Token::Until => write!(f, "until"),
+            Token::For => write!(f, "for"),
+            Token::Switch => write!(f, "switch"),
+            Token::Break => write!(f, "break"),
+            Token::Continue => write!(f, "continue"),
+            Token::Exit => write!(f, "exit"),
+            Token::With => write!(f, "with"),
+            Token::Return => write!(f, "return"),
+            Token::Begin => write!(f, "begin"),
+            Token::End => write!(f, "end"),
+            Token::Try => write!(f, "try"),
+            Token::Catch => write!(f, "catch"),
+            Token::Finally => write!(f, "finally"),
+            Token::Throw => write!(f, "throw"),
+            Token::New => write!(f, "new"),
+            Token::Delete => write!(f, "delete"),
+
+            // Division and Modulo (div, %, mod) - Words
+            Token::Div => write!(f, "div"),
+            Token::Mod => write!(f, "mod"),
+
+            // Other
+            Token::Var => write!(f, "var"),
+            Token::GlobalVar => write!(f, "globalvar"),
+            Token::LocalVar => write!(f, "localvar"),
+            Token::Function => write!(f, "function"),
+            Token::Enum => write!(f, "enum"),
+            Token::Case => write!(f, "case"),
+            Token::Default => write!(f, "default"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
+            Token::Undefined => write!(f, "undefined"),
+            Token::Null => write!(f, "null"),
+            Token::Self_ => write!(f, "self"),
+            Token::Other => write!(f, "other"),
+            Token::AndWord => write!(f, "and"),
+            Token::OrWord => write!(f, "or"),
+            Token::NotWord => write!(f, "not"),
+            Token::Global => write!(f, "global"),
+            Token::All => write!(f, "all"),
+            Token::Noone => write!(f, "noone"),
+            Token::Constructor => write!(f, "constructor"),
+            Token::Static => write!(f, "static"),
+
+            // ControlFlow (If/Else)
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+            // endregion
+
+            // ----------------------------------------
+            // region ---Operators---
+            // Assigning (=, +=, -=, *=, /=, %=)
+            Token::Equal => write!(f, "="),
+            Token::PlusEqual => write!(f, "+="),
+            Token::MinusEqual => write!(f, "-="),
+            Token::StarEqual => write!(f, "*="),
+            Token::SlashEqual => write!(f, "/="),
+            Token::PercentEqual => write!(f, "%="),
+
+            // Combining (&&, ||, ^^)
+            Token::And => write!(f, "&&"),
+            Token::Or => write!(f, "||"),
+            Token::Xor => write!(f, "^^"),
+
+            // Nullish (??, ??=)
+            Token::NullishEqual => write!(f, "??="),
+            Token::Nullish => write!(f, "??"),
+
+            // Comparing (<, <=, ==, !=, >, >=)
+            Token::Less => write!(f, "<"),
+            Token::LessEqual => write!(f, "<="),
+            Token::EqualEqual => write!(f, "=="),
+            Token::NotEqual => write!(f, "!="),
+            Token::Greater => write!(f, ">"),
+            Token::GreaterEqual => write!(f, ">="),
+
+            // Bitwise (|, &, ^, <<, >>)
+            Token::BitOr => write!(f, "|"),
+            Token::BitAnd => write!(f, "&"),
+            Token::BitXor => write!(f, "^"),
+            Token::ShiftLeft => write!(f, "<<"),
+            Token::ShiftRight => write!(f, ">>"),
+
+            // Arithmetical (+, -, *, /)
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+
+            // Increment/Decrement (++, --)
+            Token::PlusPlus => write!(f, "++"),
+            Token::MinusMinus => write!(f, "--"),
+
+            // Division and Modulo (%)
+            Token::Percent => write!(f, "%"),
+            // Note: 'div' and 'mod' words are in Keywords.
+
+            // Unary (!, ~, - is Arithmetical)
+            Token::Not => write!(f, "!"),
+            Token::BitNot => write!(f, "~"),
+            // endregion
+
+            // ----------------------------------------
+            // region ---Punctuations---
+            Token::Newline => write!(f, "\\n"),
+            Token::Semicolon => write!(f, ";"),
+            Token::Comma => write!(f, ","),
+            Token::Dot => write!(f, "."),
+            Token::LeftParen => write!(f, "("),
+            Token::RightParen => write!(f, ")"),
+            Token::LeftBrace => write!(f, "{{"),
+            Token::RightBrace => write!(f, "}}"),
+            Token::LeftBracket => write!(f, "["),
+            Token::RightBracket => write!(f, "]"),
+            Token::Question => write!(f, "?"),
+            Token::Colon => write!(f, ":"),
+            // endregion
+
+            // ----------------------------------------
+            // region ---Literals---
+            Token::Identifier => write!(f, "Identifier"),
+            Token::String(s) => write!(f, "{}", s),
+            Token::Number(s) => write!(f, "{}", s),
+            // endregion
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -473,102 +611,5 @@ mod tests {
 
         let tokens = lex_with_output(input);
         assert_eq!(tokens, expected);
-    }
-}
-impl fmt::Display for Token<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Token::Number(s) => write!(f, "{s}"),
-            Token::Plus => write!(f, "+"),
-            Token::Minus => write!(f, "-"),
-            Token::Star => write!(f, "*"),
-            Token::Slash => write!(f, "/"),
-            Token::LeftParen => write!(f, "("),
-            Token::RightParen => write!(f, ")"),
-            Token::Error => write!(f, "<error>"),
-            Token::Repeat => write!(f, "repeat"),
-            Token::While => write!(f, "while"),
-            Token::Do => write!(f, "do"),
-            Token::Until => write!(f, "until"),
-            Token::For => write!(f, "for"),
-            Token::Switch => write!(f, "switch"),
-            Token::Break => write!(f, "break"),
-            Token::Continue => write!(f, "continue"),
-            Token::Exit => write!(f, "exit"),
-            Token::With => write!(f, "with"),
-            Token::Return => write!(f, "return"),
-            Token::Begin => write!(f, "begin"),
-            Token::End => write!(f, "end"),
-            Token::Try => write!(f, "try"),
-            Token::Catch => write!(f, "catch"),
-            Token::Finally => write!(f, "finally"),
-            Token::Throw => write!(f, "throw"),
-            Token::New => write!(f, "new"),
-            Token::Delete => write!(f, "delete"),
-            Token::Div => write!(f, "div"),
-            Token::Mod => write!(f, "mod"),
-            Token::Var => write!(f, "var"),
-            Token::GlobalVar => write!(f, "globalvar"),
-            Token::LocalVar => write!(f, "localvar"),
-            Token::Function => write!(f, "function"),
-            Token::Enum => write!(f, "enum"),
-            Token::Case => write!(f, "case"),
-            Token::Default => write!(f, "default"),
-            Token::True => write!(f, "true"),
-            Token::False => write!(f, "false"),
-            Token::Undefined => write!(f, "undefined"),
-            Token::Null => write!(f, "null"),
-            Token::Self_ => write!(f, "self"),
-            Token::Other => write!(f, "other"),
-            Token::AndWord => write!(f, "and"),
-            Token::OrWord => write!(f, "or"),
-            Token::NotWord => write!(f, "not"),
-            Token::Global => write!(f, "global"),
-            Token::All => write!(f, "all"),
-            Token::Noone => write!(f, "noone"),
-            Token::Constructor => write!(f, "constructor"),
-            Token::Static => write!(f, "static"),
-            Token::If => write!(f, "if"),
-            Token::Else => write!(f, "else"),
-            Token::Equal => write!(f, "="),
-            Token::PlusEqual => write!(f, "+="),
-            Token::MinusEqual => write!(f, "-="),
-            Token::StarEqual => write!(f, "*="),
-            Token::SlashEqual => write!(f, "/="),
-            Token::PercentEqual => write!(f, "%="),
-            Token::And => write!(f, "&&"),
-            Token::Or => write!(f, "||"),
-            Token::Xor => write!(f, "^^"),
-            Token::NullishEqual => write!(f, "??="),
-            Token::Nullish => write!(f, "??"),
-            Token::Less => write!(f, "<"),
-            Token::LessEqual => write!(f, "<="),
-            Token::EqualEqual => write!(f, "=="),
-            Token::NotEqual => write!(f, "!="),
-            Token::Greater => write!(f, ">"),
-            Token::GreaterEqual => write!(f, ">="),
-            Token::BitOr => write!(f, "|"),
-            Token::BitAnd => write!(f, "&"),
-            Token::BitXor => write!(f, "^"),
-            Token::ShiftLeft => write!(f, "<<"),
-            Token::ShiftRight => write!(f, ">>"),
-            Token::PlusPlus => write!(f, "++"),
-            Token::MinusMinus => write!(f, "--"),
-            Token::Percent => write!(f, "%"),
-            Token::Not => write!(f, "!"),
-            Token::BitNot => write!(f, "~"),
-            Token::Newline => write!(f, "newline"),
-            Token::Semicolon => write!(f, ";"),
-            Token::Comma => write!(f, ","),
-            Token::Dot => write!(f, "."),
-            Token::LeftBrace => write!(f, "{{"),
-            Token::RightBrace => write!(f, "}}"),
-            Token::LeftBracket => write!(f, "["),
-            Token::RightBracket => write!(f, "]"),
-            Token::Question => write!(f, "?"),
-            Token::Colon => write!(f, ":"),
-            Token::Identifier => write!(f, "identifier"),
-            Token::String(s) => write!(f, "{s}"),
-        }
     }
 }
