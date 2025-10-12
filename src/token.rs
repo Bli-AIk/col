@@ -235,3 +235,58 @@ pub(crate) enum Token<'a> {
     Number(&'a str),
     // endregion
 }
+
+#[cfg(test)]
+mod tests{
+    use owo_colors::OwoColorize;
+    use super::*;
+    #[test]
+    fn tokenize_numbers() {
+
+        let content = "123 + 456 - 789 * 123 / 456";
+        let mut lex = Token::lexer(content);
+
+        let mut tokens = Vec::new();
+        
+        let x = "Test Result :";
+        print!("{:?} ", x.green());
+
+        while let Some(result) = lex.next() {
+            match result {
+                Ok(token) => {
+                    if token != Token::Newline {
+                        print!("{:?} ", token);
+                    } else {
+                        print!("{:?} ", token.green());
+                        println!();
+                    }
+
+                    tokens.push(token);
+                }
+                Err(token) => {
+                    let msg = "Error token encountered";
+                    println!("{} : {:?}", msg.red(), token.red());
+                    panic!("Lexer failed on token: {:?}", token);
+                }
+            }
+        }
+
+        println!();
+
+        // ✅ 这里直接整体比较预期的 token 序列
+        let expected = vec![
+            Token::Number("123"),  // 123
+            Token::Plus,    // +
+            Token::Number("456"),  // 456
+            Token::Minus,   // -
+            Token::Number("789"),  // 789
+            Token::Star,    // *
+            Token::Number("123"),  // 123
+            Token::Slash,   // /
+            Token::Number("456"),  // 456
+        ];
+
+        assert_eq!(tokens, expected, "Token sequence mismatch");
+    }
+
+}
