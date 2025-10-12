@@ -8,6 +8,27 @@ use chumsky::{
     prelude::*,
 };
 
+/*
+program        → statement* EOF ;
+
+statement      → exprStmt
+               | xxxStmt ;
+
+exprStmt       → expression (";" | newline);
+
+---
+
+expression     → equality ;
+equality       → comparison ( ( "!=" | "==" ) comparison )* ;
+comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term           → factor ( ( "-" | "+" ) factor )* ;
+factor         → unary ( ( "/" | "*" ) unary )* ;
+unary          → ( "!" | "-" ) unary
+               | primary ;
+primary        → number | string | "true" | "false" | "null"
+               | "(" expression ")" ;
+*/
+
 pub(crate) fn parser<'tokens, 'src: 'tokens, I>()
 -> impl Parser<'tokens, I, Expr, extra::Err<Rich<'tokens, Token<'src>>>>
 where
@@ -18,7 +39,7 @@ where
             Token::Number(x) => Expr::Num(x.parse().unwrap()),
         };
 
-        let atom = choice((
+        let primary = choice((
             number.clone(),
             expr.clone()
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
@@ -32,10 +53,10 @@ where
             just(Token::Minus)
                 .ignore_then(expr.clone())
                 .map(|e| Expr::Neg(Box::new(e))),
-            atom,
+            primary,
         ));
 
-        let product = unary.clone().foldl(
+        let factor = unary.clone().foldl(
             choice((
                 just(Token::Star).to(Expr::Mul as fn(_, _) -> _),
                 just(Token::Slash).to(Expr::Div as fn(_, _) -> _),
@@ -45,17 +66,17 @@ where
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
 
-        let sum = product.clone().foldl(
+        let term = factor.clone().foldl(
             choice((
                 just(Token::Plus).to(Expr::Add as fn(_, _) -> _),
                 just(Token::Minus).to(Expr::Sub as fn(_, _) -> _),
             ))
-            .then(product)
+            .then(factor)
             .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
 
-        let result = sum;
+        let result = term;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated())
     })
