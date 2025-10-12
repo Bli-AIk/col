@@ -1,7 +1,4 @@
-use serde::Serialize;
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "type", content = "value")]
+#[derive(Debug)]
 pub enum Expr {
     Number(f64),
     String(String),

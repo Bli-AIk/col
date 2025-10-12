@@ -44,8 +44,6 @@ fn main() {
     println!();
     match parser().parse(token_stream).into_result() {
         Ok(expr) => {
-            let yaml_str = serde_yaml::to_string(&expr).unwrap();
-            println!("{}", yaml_str);
             let debug_str = format!("{:?}", expr);
             println!(
                 "{} {}",
