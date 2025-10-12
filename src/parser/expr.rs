@@ -1,4 +1,10 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct Func {
+    pub args: Vec<String>,
+    pub body: Vec<Expr>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     Number(f64),
     String(String),
@@ -7,6 +13,7 @@ pub enum Expr {
     False(bool),
     Null,
     Identifier(String),
+    Call(String, Vec<Expr>),
     Addition(Box<Expr>, Box<Expr>),
     Subtraction(Box<Expr>, Box<Expr>),
     Multiplication(Box<Expr>, Box<Expr>),
@@ -31,5 +38,4 @@ pub enum Expr {
     Or(Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     Equal(Box<Expr>, Box<Expr>),
-    Expression(Box<Expr>),
 }

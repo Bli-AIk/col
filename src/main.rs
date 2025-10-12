@@ -42,7 +42,7 @@ fn main() {
         Stream::from_iter(token_iter).map((0..content.len()).into(), |(t, s): (_, _)| (t, s));
 
     println!();
-    match parser().parse(token_stream).into_result() {
+    match funcs_parser().parse(token_stream).into_result() {
         Ok(expr) => {
             let debug_str = format!("{:?}", expr);
             println!(
