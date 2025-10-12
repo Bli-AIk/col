@@ -39,7 +39,7 @@ primary        → number | string | "true" | "false" | "null"
 */
 
 pub(crate) fn parser<'tokens, 'src: 'tokens, I>()
--> impl Parser<'tokens, I, Expr, extra::Err<Rich<'tokens, Token<'src>>>>
+-> impl Parser<'tokens, I, Vec<Expr>, extra::Err<Rich<'tokens, Token<'src>>>>
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
@@ -302,17 +302,12 @@ where
     // endregion
 
     // region statement
-    //let statement = expr_stmt;
+    let statement = expr_stmt;
     // endregion
 
-    /*
     // region program
-    let program = expr_stmt
-        .repeated()
-        .then(end())
-    .map(|(stmts, _)| Expr::Program(stmts))
-    .boxed();
+    let program = statement.repeated().collect().then_ignore(end());
     // endregion
-    */
-    expr_stmt
+
+    program
 }
