@@ -290,16 +290,14 @@ where
         // Ignore NewLine for now
         result //.padded_by(just(Token::Newline).repeated()).boxed()
     });
-    /*
+
     // region expr_stmt
     let expr_stmt = expression
         .clone()
-        .then(choice((just(Token::Semicolon), just(Token::Newline)))) // 只匹配一个终结符
+        .then(choice((just(Token::Semicolon), just(Token::Newline))).repeated())
         .map(|(e, _)| e)
         .boxed();
     // endregion
 
     expr_stmt
-    */
-    expression
 }
