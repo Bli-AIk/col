@@ -286,18 +286,33 @@ where
             .boxed();
         // endregion
 
-        let result = assignment;
-        // Ignore NewLine for now
-        result //.padded_by(just(Token::Newline).repeated()).boxed()
+        assignment
     });
 
     // region expr_stmt
     let expr_stmt = expression
         .clone()
-        .then(choice((just(Token::Semicolon), just(Token::Newline))).repeated())
-        .map(|(e, _)| e)
+        .then_ignore(
+            choice((just(Token::Semicolon), just(Token::Newline)))
+                .repeated()
+                .at_least(1),
+        )
+        .map(|expr| Expr::Expression(Box::new(expr)))
         .boxed();
     // endregion
 
+    // region statement
+    //let statement = expr_stmt;
+    // endregion
+
+    /*
+    // region program
+    let program = expr_stmt
+        .repeated()
+        .then(end())
+    .map(|(stmts, _)| Expr::Program(stmts))
+    .boxed();
+    // endregion
+    */
     expr_stmt
 }

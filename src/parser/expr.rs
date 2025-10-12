@@ -31,4 +31,6 @@ pub enum Expr {
     Or(Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     Equal(Box<Expr>, Box<Expr>),
+    Expression(Box<Expr>),
+    Program(Vec<Expr>),
 }
