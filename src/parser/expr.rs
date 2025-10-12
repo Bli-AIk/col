@@ -5,10 +5,16 @@ pub struct Func {
 }
 
 #[derive(Debug, Clone)]
+pub enum Stmt {
+    Expr(Expr),
+    Var(Vec<(String, Option<Expr>)>),
+}
+
+
+#[derive(Debug, Clone)]
 pub enum Expr {
     Number(f64),
     String(String),
-    Var(String),
     True(bool),
     False(bool),
     Null,

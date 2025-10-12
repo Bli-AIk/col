@@ -13,6 +13,9 @@ statement      → exprStmt
 
 exprStmt       → expression (";" | newline);
 
+varStmt        → "var" variableDecl ("," variableDecl)* (";" | newline);
+variableDecl   → IDENTIFIER ("=" expression)?;
+
 ---
 
 expression     → assignment ;
