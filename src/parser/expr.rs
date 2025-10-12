@@ -29,4 +29,5 @@ pub enum Expr {
     And(Box<Expr>, Box<Expr>),
     Xor(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
+    Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
 }

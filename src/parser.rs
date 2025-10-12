@@ -241,15 +241,40 @@ where
         // endregion
 
         // region logic_or
-        let logic_or = logic_xor.clone().foldl(
-            choice((just(Token::Or).to(Expr::Or as fn(_, _) -> _),))
-                .then(logic_xor)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let logic_or = logic_xor
+            .clone()
+            .foldl(
+                choice((just(Token::Or).to(Expr::Or as fn(_, _) -> _),))
+                    .then(logic_xor)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
-        let result = logic_or;
+        // region ternary
+        let ternary = recursive(|ternary| {
+            logic_or
+                .clone()
+                .then(
+                    just(Token::Question)
+                        .ignore_then(expr.clone())
+                        .then_ignore(just(Token::Colon))
+                        .then(ternary.clone())
+                        .or_not(),
+                )
+                .map(|(cond, opt)| {
+                    if let Some((then_branch, else_branch)) = opt {
+                        Expr::Ternary(Box::new(cond), Box::new(then_branch), Box::new(else_branch))
+                    } else {
+                        cond
+                    }
+                })
+        })
+        .boxed();
+        // endregion
+
+        let result = ternary;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated()).boxed()
     })
