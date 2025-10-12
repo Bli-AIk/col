@@ -1,6 +1,6 @@
-use std::fmt;
 use logos::Logos;
 use owo_colors::OwoColorize;
+use std::fmt;
 
 #[derive(Logos, Debug, PartialEq)]
 #[logos(skip r"[ \t]+")]
@@ -226,8 +226,16 @@ pub(crate) enum Token<'a> {
     // region ---Literals---
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
-    #[regex(r#""([^"\\]|\\.)*""#)]
+
+    // [^"\n]* means that there cannot be " and newline characters in the middle,
+    // so only single-line strings are allowed
+    #[regex(r#""[^"\n]*""#, |lex| {
+    let slice = lex.slice();
+    &slice[1..slice.len()-1]
+    })]
     String(&'a str),
+
+
     #[regex(r"\d+(\.\d+)?")]
     Number(&'a str),
     // endregion
@@ -367,7 +375,6 @@ impl fmt::Display for Token<'_> {
     }
 }
 
-
 pub(crate) fn lex_with_output(input: &'_ str) -> Vec<Token<'_>> {
     let mut lex = Token::lexer(input);
     let mut tokens = Vec::new();
@@ -464,8 +471,7 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let input =
-            "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> + - * / % ! ~";
+        let input = "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> + - * / % ! ~";
         let expected = vec![
             Token::Equal,
             Token::PlusEqual,

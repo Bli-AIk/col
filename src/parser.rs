@@ -3,10 +3,7 @@ mod expr;
 use expr::*;
 
 use crate::token::*;
-use chumsky::{
-    input::ValueInput,
-    prelude::*,
-};
+use chumsky::{input::ValueInput, prelude::*};
 
 /*
 program        → statement* EOF ;
@@ -23,7 +20,7 @@ equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
 factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "-" ) unary
+unary          → ( "!" | "+" | "-" ) unary
                | primary ;
 primary        → number | string | "true" | "false" | "null"
                | "(" expression ")" ;
@@ -36,30 +33,47 @@ where
 {
     recursive(|expr| {
         let number = select! {
-            Token::Number(x) => Expr::Num(x.parse().unwrap()),
+            Token::Number(x) => Expr::Number(x.parse().unwrap()),
+        };
+
+        let string = select! {
+            Token::String(x) => Expr::String(x.to_string()),
+        };
+
+        let bool_true = select! {
+            Token::True  => Expr::True(true),
+        };
+        let bool_false = select! {
+            Token::False  => Expr::False(false),
         };
 
         let primary = choice((
-            number.clone(),
+            number,
+            string,
+            bool_true,
+            bool_false,
             expr.clone()
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
                 .map(|e| Expr::Paren(Box::new(e))),
         ));
 
         let unary = choice((
+            just(Token::Not)
+                .ignore_then(expr.clone())
+                .map(|e| Expr::Not(Box::new(e))),
             just(Token::Plus)
                 .ignore_then(expr.clone())
-                .map(|e| Expr::Pos(Box::new(e))),
+                .map(|e| Expr::Positive(Box::new(e))),
             just(Token::Minus)
                 .ignore_then(expr.clone())
-                .map(|e| Expr::Neg(Box::new(e))),
+                .map(|e| Expr::Negative(Box::new(e))),
             primary,
         ));
 
         let factor = unary.clone().foldl(
             choice((
-                just(Token::Star).to(Expr::Mul as fn(_, _) -> _),
-                just(Token::Slash).to(Expr::Div as fn(_, _) -> _),
+                just(Token::Star).to(Expr::Multiplication as fn(_, _) -> _),
+                just(Token::Slash).to(Expr::Division as fn(_, _) -> _),
             ))
             .then(unary)
             .repeated(),
@@ -68,8 +82,8 @@ where
 
         let term = factor.clone().foldl(
             choice((
-                just(Token::Plus).to(Expr::Add as fn(_, _) -> _),
-                just(Token::Minus).to(Expr::Sub as fn(_, _) -> _),
+                just(Token::Plus).to(Expr::Addition as fn(_, _) -> _),
+                just(Token::Minus).to(Expr::Subtraction as fn(_, _) -> _),
             ))
             .then(factor)
             .repeated(),

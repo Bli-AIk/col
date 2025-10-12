@@ -3,13 +3,17 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Expr {
-    Num(f64),
+    Number(f64),
+    String(String),
     Var(String),
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    Pos(Box<Expr>),
-    Neg(Box<Expr>),
+    True(bool),
+    False(bool),
+    Addition(Box<Expr>, Box<Expr>),
+    Subtraction(Box<Expr>, Box<Expr>),
+    Multiplication(Box<Expr>, Box<Expr>),
+    Division(Box<Expr>, Box<Expr>),
+    Not(Box<Expr>),
+    Positive(Box<Expr>),
+    Negative(Box<Expr>),
     Paren(Box<Expr>),
 }
