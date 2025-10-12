@@ -1,6 +1,8 @@
-#[derive(Debug)]
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
 pub enum Expr {
-    Number(f64),
+    Num(f64),
     Var(String),
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),

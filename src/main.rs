@@ -7,7 +7,7 @@ use chumsky::{
 use logos::Logos;
 use owo_colors::OwoColorize;
 use parser::*;
-use std::{fmt, fs};
+use std::fs;
 
 mod parser;
 mod token;
@@ -26,9 +26,9 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
     lex_with_output(&content);
-    
+
     let token_iter = Token::lexer(&content)
         .spanned()
         .map(|(tok, span)| match tok {
@@ -44,7 +44,11 @@ fn main() {
 
     println!();
     match parser().parse(token_stream).into_result() {
-        Ok(expr) => println!("{} {:?}", "Parsed:".green(), expr),
+        Ok(expr) => {
+            println!("{} {:?}", "Parsed:".green(), expr);
+            let yaml_str = serde_yaml::to_string(&expr).unwrap();
+            println!("{}", yaml_str);
+        }
         Err(errs) => {
             for err in errs {
                 Report::build(ReportKind::Error, ((), err.span().into_range()))

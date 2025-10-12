@@ -4,7 +4,7 @@ use expr::*;
 
 use crate::token::*;
 use chumsky::{
-    input::{Stream, ValueInput},
+    input::ValueInput,
     prelude::*,
 };
 
@@ -15,7 +15,7 @@ where
 {
     recursive(|expr| {
         let number = select! {
-            Token::Number(x) => Expr::Number(x.parse().unwrap()),
+            Token::Number(x) => Expr::Num(x.parse().unwrap()),
         };
 
         let atom = number;
