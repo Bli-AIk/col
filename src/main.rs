@@ -26,7 +26,9 @@ fn main() {
             std::process::exit(1);
         }
     };
-
+    
+    lex_with_output(&content);
+    
     let token_iter = Token::lexer(&content)
         .spanned()
         .map(|(tok, span)| match tok {

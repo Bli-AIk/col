@@ -1,5 +1,6 @@
 use std::fmt;
 use logos::Logos;
+use owo_colors::OwoColorize;
 
 #[derive(Logos, Debug, PartialEq)]
 #[logos(skip r"[ \t]+")]
@@ -177,12 +178,6 @@ pub(crate) enum Token<'a> {
     #[token("/")]
     Slash,
 
-    // Increment/Decrement (++, --)
-    #[token("++")]
-    PlusPlus,
-    #[token("--")]
-    MinusMinus,
-
     // Division and Modulo (div, %, mod)
     #[token("%")]
     Percent,
@@ -337,10 +332,6 @@ impl fmt::Display for Token<'_> {
             Token::Star => write!(f, "*"),
             Token::Slash => write!(f, "/"),
 
-            // Increment/Decrement (++, --)
-            Token::PlusPlus => write!(f, "++"),
-            Token::MinusMinus => write!(f, "--"),
-
             // Division and Modulo (%)
             Token::Percent => write!(f, "%"),
             // Note: 'div' and 'mod' words are in Keywords.
@@ -376,38 +367,35 @@ impl fmt::Display for Token<'_> {
     }
 }
 
+
+pub(crate) fn lex_with_output(input: &'_ str) -> Vec<Token<'_>> {
+    let mut lex = Token::lexer(input);
+    let mut tokens = Vec::new();
+    println!();
+    println!("{}", "(Test) Lexer output :".green());
+
+    while let Some(result) = lex.next() {
+        match result {
+            Ok(token) => {
+                if token == Token::Newline {
+                    println!("{}", "↵ Newline".blue());
+                } else {
+                    print!("{:?} ", token);
+                }
+                tokens.push(token);
+            }
+            Err(_) => {
+                println!("{}", "Lexer error encountered!".red());
+                panic!("Lexer failed on input: {:?}", input);
+            }
+        }
+    }
+    println!("\n");
+    tokens
+}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use logos::Logos;
-    use owo_colors::OwoColorize;
-
-    /// 通用：带彩色输出的 lex 函数
-    fn lex_with_output(input: &'_ str) -> Vec<Token<'_>> {
-        let mut lex = Token::lexer(input);
-        let mut tokens = Vec::new();
-        println!();
-        println!("{}", "Test Result :".green());
-
-        while let Some(result) = lex.next() {
-            match result {
-                Ok(token) => {
-                    if token == Token::Newline {
-                        println!("{}", "↵ Newline".blue());
-                    } else {
-                        print!("{:?} ", token);
-                    }
-                    tokens.push(token);
-                }
-                Err(_) => {
-                    println!("{}", "Lexer error encountered!".red());
-                    panic!("Lexer failed on input: {:?}", input);
-                }
-            }
-        }
-        println!("\n");
-        tokens
-    }
 
     // ---------------------------
     // ClassificationTest
@@ -477,7 +465,7 @@ mod tests {
     #[test]
     fn test_operators() {
         let input =
-            "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
+            "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> + - * / % ! ~";
         let expected = vec![
             Token::Equal,
             Token::PlusEqual,
@@ -501,8 +489,6 @@ mod tests {
             Token::BitXor,
             Token::ShiftLeft,
             Token::ShiftRight,
-            Token::PlusPlus,
-            Token::MinusMinus,
             Token::Plus,
             Token::Minus,
             Token::Star,
