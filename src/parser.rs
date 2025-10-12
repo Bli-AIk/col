@@ -22,6 +22,7 @@ assignment     → ternary ( "=" ternary )? ;
 ternary        → logic_or ( "?" expression ":" ternary )? ;
 
 logic_or       → logic_and ( "||" logic_and )* ;
+logic_xor      → logic_and ( "^^" logic_and )* ;
 logic_and      → bit_or ( "&&" bit_or )* ;
 bit_or         → bit_xor ( "|" bit_xor )* ;
 bit_xor        → bit_and ( "^" bit_and )* ;
@@ -66,12 +67,19 @@ where
         };
         // endregion
 
+        // region null
+        let null = select! {
+            Token::Null  => Expr::Null,
+        };
+        // endregion
+
         // region primary
         let primary = choice((
             number,
             string,
             bool_true,
             bool_false,
+            null,
             expr.clone()
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
                 .map(|e| Expr::Paren(Box::new(e))),
@@ -79,18 +87,24 @@ where
         // endregion
 
         // region unary
-        let unary = choice((
-            just(Token::Not)
-                .ignore_then(expr.clone())
-                .map(|e| Expr::Not(Box::new(e))),
-            just(Token::Plus)
-                .ignore_then(expr.clone())
-                .map(|e| Expr::Positive(Box::new(e))),
-            just(Token::Minus)
-                .ignore_then(expr.clone())
-                .map(|e| Expr::Negative(Box::new(e))),
-            primary,
-        ));
+        let unary = recursive(|unary| {
+            choice((
+                just(Token::Not)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::Not(Box::new(e))),
+                just(Token::BitNot)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::BitNot(Box::new(e))),
+                just(Token::Plus)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::Positive(Box::new(e))),
+                just(Token::Minus)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::Negative(Box::new(e))),
+                primary,
+            ))
+        });
+
         // endregion
 
         // region factor
@@ -98,6 +112,7 @@ where
             choice((
                 just(Token::Star).to(Expr::Multiplication as fn(_, _) -> _),
                 just(Token::Slash).to(Expr::Division as fn(_, _) -> _),
+                just(Token::Percent).to(Expr::Percent as fn(_, _) -> _),
             ))
             .then(unary)
             .repeated(),
@@ -125,8 +140,8 @@ where
                 just(Token::Less).to(Expr::Less as fn(_, _) -> _),
                 just(Token::LessEqual).to(Expr::LessEqual as fn(_, _) -> _),
             ))
-                .then(term)
-                .repeated(),
+            .then(term)
+            .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
         // endregion
@@ -143,9 +158,42 @@ where
         );
         // endregion
 
-        let expression = equality;
+        // region bit_and
+        let bit_and = equality.clone().foldl(
+            choice((
+                just(Token::BitAnd).to(Expr::BitAnd as fn(_, _) -> _),
+            ))
+                .then(equality)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
 
-        let result = expression;
+        // region bit_xor
+        let bit_xor = bit_and.clone().foldl(
+            choice((
+                just(Token::BitXor).to(Expr::BitXor as fn(_, _) -> _),
+            ))
+                .then(bit_and)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
+
+        // region bit_or
+        let bit_or = bit_xor.clone().foldl(
+            choice((
+                just(Token::BitOr).to(Expr::BitOr as fn(_, _) -> _),
+            ))
+                .then(bit_xor)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
+
+
+
+        let result = bit_or;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated())
     })
