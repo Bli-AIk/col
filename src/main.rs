@@ -1,7 +1,7 @@
 use crate::token::*;
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use chumsky::{
-    input::{Stream, ValueInput},
+    input::{Stream},
     prelude::*,
 };
 use logos::Logos;
@@ -47,7 +47,8 @@ fn main() {
         Ok(expr) => {
             let yaml_str = serde_yaml::to_string(&expr).unwrap();
             println!("{}", yaml_str);
-            println!("{} {:?}", "Parsed:".green(), expr);
+            let debug_str = format!("{:?}", expr);
+            println!("{} {}", "Parsed:".green(), colorize_brackets(&debug_str));
         }
         Err(errs) => {
             for err in errs {
@@ -66,4 +67,39 @@ fn main() {
             }
         }
     }
+}
+
+fn colorize_brackets(input: &str) -> String {
+    let colors: [&dyn Fn(&str) -> String; 5] = [
+        &|s| s.red().to_string(),
+        &|s| s.green().to_string(),
+        &|s| s.yellow().to_string(),
+        &|s| s.blue().to_string(),
+        &|s| s.magenta().to_string(),
+    ];
+
+    let mut result = String::with_capacity(input.len());
+    let mut depth: usize = 0;
+
+    for c in input.chars() {
+        match c {
+            '(' => {
+                let color_fn = colors[depth % colors.len()];
+                result.push_str(&color_fn("("));
+                depth = depth.saturating_add(1);
+            }
+            ')' => {
+                if depth > 0 {
+                    depth -= 1;
+                    let color_fn = colors[depth % colors.len()];
+                    result.push_str(&color_fn(")"));
+                } else {
+                    result.push(')');
+                }
+            }
+            _ => result.push(c),
+        }
+    }
+
+    result
 }
