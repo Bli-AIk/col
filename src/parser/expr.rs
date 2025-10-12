@@ -16,4 +16,10 @@ pub enum Expr {
     Positive(Box<Expr>),
     Negative(Box<Expr>),
     Paren(Box<Expr>),
+    Greater(Box<Expr>, Box<Expr>),
+    GreaterEqual(Box<Expr>, Box<Expr>),
+    Less(Box<Expr>, Box<Expr>),
+    LessEqual(Box<Expr>, Box<Expr>),
+    EqualEqual(Box<Expr>, Box<Expr>),
+    NotEqual(Box<Expr>, Box<Expr>),
 }

@@ -32,21 +32,31 @@ where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|expr| {
+        // region number
         let number = select! {
             Token::Number(x) => Expr::Number(x.parse().unwrap()),
         };
+        // endregion
 
+        // region string
         let string = select! {
             Token::String(x) => Expr::String(x.to_string()),
         };
+        // endregion
 
+        // region bool_true
         let bool_true = select! {
             Token::True  => Expr::True(true),
         };
+        // endregion
+
+        // region bool_false
         let bool_false = select! {
             Token::False  => Expr::False(false),
         };
+        // endregion
 
+        // region primary
         let primary = choice((
             number,
             string,
@@ -56,7 +66,9 @@ where
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
                 .map(|e| Expr::Paren(Box::new(e))),
         ));
+        // endregion
 
+        // region unary
         let unary = choice((
             just(Token::Not)
                 .ignore_then(expr.clone())
@@ -69,7 +81,9 @@ where
                 .map(|e| Expr::Negative(Box::new(e))),
             primary,
         ));
+        // endregion
 
+        // region factor
         let factor = unary.clone().foldl(
             choice((
                 just(Token::Star).to(Expr::Multiplication as fn(_, _) -> _),
@@ -79,7 +93,9 @@ where
             .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
+        // endregion
 
+        // region term
         let term = factor.clone().foldl(
             choice((
                 just(Token::Plus).to(Expr::Addition as fn(_, _) -> _),
@@ -89,8 +105,36 @@ where
             .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
+        // endregion
 
-        let result = term;
+        // region comparison
+        let comparison = term.clone().foldl(
+            choice((
+                just(Token::Greater).to(Expr::Greater as fn(_, _) -> _),
+                just(Token::GreaterEqual).to(Expr::GreaterEqual as fn(_, _) -> _),
+                just(Token::Less).to(Expr::Less as fn(_, _) -> _),
+                just(Token::LessEqual).to(Expr::LessEqual as fn(_, _) -> _),
+            ))
+                .then(term)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
+
+        // region equality
+        let equality = comparison.clone().foldl(
+            choice((
+                just(Token::EqualEqual).to(Expr::EqualEqual as fn(_, _) -> _),
+                just(Token::NotEqual).to(Expr::NotEqual as fn(_, _) -> _),
+            ))
+                .then(comparison)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
+
+
+        let result = equality;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated())
     })

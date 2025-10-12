@@ -9,7 +9,7 @@ use std::fmt;
 #[derive(Clone)]
 pub(crate) enum Token<'a> {
     Error,
-    // region ---Keywords---
+    // region Keywords
     // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features.htm&rhsearch=globalvar
     #[token("repeat")]
     Repeat,
@@ -111,7 +111,7 @@ pub(crate) enum Token<'a> {
     // endregion
 
     // ----------------------------------------
-    // region ---Operators---
+    // region Operators
     // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FExpressions_And_Operators.htm&rhsearch=globalvar
 
     // Assigning (=)
@@ -194,7 +194,7 @@ pub(crate) enum Token<'a> {
     // endregion
 
     // ----------------------------------------
-    // region ---Punctuations---
+    // region Punctuations
     #[regex(r"(?:\r\n|\n|\r)+")]
     Newline,
     #[token(";")]
@@ -223,7 +223,7 @@ pub(crate) enum Token<'a> {
     // endregion
 
     // ----------------------------------------
-    // region ---Literals---
+    // region Literals
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
 
@@ -246,7 +246,7 @@ impl fmt::Display for Token<'_> {
             // Error
             Token::Error => write!(f, "Error"),
 
-            // region ---Keywords---
+            // region Keywords
             // ControlFlow
             Token::Repeat => write!(f, "repeat"),
             Token::While => write!(f, "while"),
@@ -301,7 +301,7 @@ impl fmt::Display for Token<'_> {
             // endregion
 
             // ----------------------------------------
-            // region ---Operators---
+            // region Operators
             // Assigning (=, +=, -=, *=, /=, %=)
             Token::Equal => write!(f, "="),
             Token::PlusEqual => write!(f, "+="),
@@ -350,7 +350,7 @@ impl fmt::Display for Token<'_> {
             // endregion
 
             // ----------------------------------------
-            // region ---Punctuations---
+            // region Punctuations
             Token::Newline => write!(f, "\\n"),
             Token::Semicolon => write!(f, ";"),
             Token::Comma => write!(f, ","),
@@ -366,7 +366,7 @@ impl fmt::Display for Token<'_> {
             // endregion
 
             // ----------------------------------------
-            // region ---Literals---
+            // region Literals
             Token::Identifier => write!(f, "Identifier"),
             Token::String(s) => write!(f, "{}", s),
             Token::Number(s) => write!(f, "{}", s),
