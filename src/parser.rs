@@ -152,17 +152,15 @@ where
                 just(Token::EqualEqual).to(Expr::EqualEqual as fn(_, _) -> _),
                 just(Token::NotEqual).to(Expr::NotEqual as fn(_, _) -> _),
             ))
-                .then(comparison)
-                .repeated(),
+            .then(comparison)
+            .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
         // endregion
 
         // region bit_and
         let bit_and = equality.clone().foldl(
-            choice((
-                just(Token::BitAnd).to(Expr::BitAnd as fn(_, _) -> _),
-            ))
+            choice((just(Token::BitAnd).to(Expr::BitAnd as fn(_, _) -> _),))
                 .then(equality)
                 .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
@@ -171,9 +169,7 @@ where
 
         // region bit_xor
         let bit_xor = bit_and.clone().foldl(
-            choice((
-                just(Token::BitXor).to(Expr::BitXor as fn(_, _) -> _),
-            ))
+            choice((just(Token::BitXor).to(Expr::BitXor as fn(_, _) -> _),))
                 .then(bit_and)
                 .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
@@ -182,19 +178,42 @@ where
 
         // region bit_or
         let bit_or = bit_xor.clone().foldl(
-            choice((
-                just(Token::BitOr).to(Expr::BitOr as fn(_, _) -> _),
-            ))
+            choice((just(Token::BitOr).to(Expr::BitOr as fn(_, _) -> _),))
                 .then(bit_xor)
                 .repeated(),
             |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
         );
         // endregion
 
+        // region logic_and
+        let logic_and = bit_or.clone().foldl(
+            choice((just(Token::And).to(Expr::And as fn(_, _) -> _),))
+                .then(bit_or)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
 
+        // region logic_xor
+        let logic_xor = logic_and.clone().foldl(
+            choice((just(Token::Xor).to(Expr::Xor as fn(_, _) -> _),))
+                .then(logic_and)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
 
-        let result = bit_or;
+        // region logic_or
+        let logic_or = logic_xor.clone().foldl(
+            choice((just(Token::Or).to(Expr::Or as fn(_, _) -> _),))
+                .then(logic_xor)
+                .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
+        // endregion
+
+        let result = logic_or;
         // Ignore NewLine for now
-        result.padded_by(just(Token::Newline).repeated())
+        result.padded_by(just(Token::Newline).repeated()).boxed()
     })
 }

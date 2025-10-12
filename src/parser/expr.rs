@@ -25,4 +25,7 @@ pub enum Expr {
     BitAnd(Box<Expr>, Box<Expr>),
     BitXor(Box<Expr>, Box<Expr>),
     BitOr(Box<Expr>, Box<Expr>),
+    And(Box<Expr>, Box<Expr>),
+    Xor(Box<Expr>, Box<Expr>),
+    Or(Box<Expr>, Box<Expr>),
 }
