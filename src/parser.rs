@@ -15,12 +15,22 @@ exprStmt       → expression (";" | newline);
 
 ---
 
-expression     → equality ;
+expression     → assignment ;
+
+assignment     → ternary ( "=" ternary )? ;
+
+ternary        → logic_or ( "?" expression ":" ternary )? ;
+
+logic_or       → logic_and ( "||" logic_and )* ;
+logic_and      → bit_or ( "&&" bit_or )* ;
+bit_or         → bit_xor ( "|" bit_xor )* ;
+bit_xor        → bit_and ( "^" bit_and )* ;
+bit_and        → equality ( "&" equality )* ;
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" ) unary )* ;
-unary          → ( "!" | "+" | "-" ) unary
+factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
+unary          → ( "!" | "~" | "+" | "-" ) unary
                | primary ;
 primary        → number | string | "true" | "false" | "null"
                | "(" expression ")" ;
@@ -133,8 +143,9 @@ where
         );
         // endregion
 
+        let expression = equality;
 
-        let result = equality;
+        let result = expression;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated())
     })
