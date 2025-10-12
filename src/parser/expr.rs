@@ -30,4 +30,5 @@ pub enum Expr {
     Xor(Box<Expr>, Box<Expr>),
     Or(Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
+    Equal(Box<Expr>, Box<Expr>),
 }

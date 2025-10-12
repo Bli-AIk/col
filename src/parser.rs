@@ -274,7 +274,23 @@ where
         .boxed();
         // endregion
 
-        let result = ternary;
+        // region assignment
+        let assignment = ternary
+            .clone()
+            .foldl(
+                choice((just(Token::Equal).to(Expr::Equal as fn(_, _) -> _),))
+                    .then(ternary)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
+        // endregion
+
+        // region expression
+        let expression = assignment;
+        // endregion
+
+        let result = expression;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated()).boxed()
     })
