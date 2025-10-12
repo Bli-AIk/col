@@ -40,8 +40,16 @@ fn main() {
         Stream::from_iter(token_iter).map((0..content.len()).into(), |(t, s): (_, _)| (t, s));
 
     println!();
-    match parser().parse(token_stream).into_result() {
+    match parser()
+        .parse(token_stream)
+        .into_result()
+    {
         Ok(expr) => println!("{} {:?}", "Parsed:".green(), expr),
-        Err(errs) => println!("{} {:?}", "Parse errors:".red(), errs.red()),
+        Err(errs) => {
+            println!("{} {:?}", "Errors length:".red(), errs.len().red());
+            for err in errs {
+                println!("{} {:?}", "Parse errors:".red(), err.red());
+            }
+        }
     }
 }
