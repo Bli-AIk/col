@@ -8,11 +8,10 @@ use chumsky::{
     prelude::*,
 };
 
-
 pub(crate) fn parser<'tokens, 'src: 'tokens, I>()
-    -> impl Parser<'tokens, I, Expr, extra::Err<Rich<'tokens, Token<'src>>>>
+-> impl Parser<'tokens, I, Expr, extra::Err<Rich<'tokens, Token<'src>>>>
 where
-    I: ValueInput<'tokens, Token=Token<'src>, Span=SimpleSpan>,
+    I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
     recursive(|expr| {
         let number = select! {
@@ -27,14 +26,31 @@ where
             just(Token::Minus)
                 .ignore_then(expr.clone())
                 .map(|e| Expr::Neg(Box::new(e))),
-            atom.clone()
+            atom,
         ));
 
+        let product = unary.clone().foldl(
+            choice((
+                just(Token::Star).to(Expr::Mul as fn(_, _) -> _),
+                just(Token::Slash).to(Expr::Div as fn(_, _) -> _),
+            ))
+            .then(unary)
+            .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
 
+        let sum = product.clone().foldl(
+            choice((
+                just(Token::Plus).to(Expr::Add as fn(_, _) -> _),
+                just(Token::Minus).to(Expr::Sub as fn(_, _) -> _),
+            ))
+            .then(product)
+            .repeated(),
+            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+        );
 
-        let result = unary;
+        let result = sum;
         // Ignore NewLine for now
         result.padded_by(just(Token::Newline).repeated())
     })
 }
-
