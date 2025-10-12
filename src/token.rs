@@ -224,8 +224,10 @@ pub(crate) enum Token<'a> {
 
     // ----------------------------------------
     // region Literals
+
+    // See https://manual.gamemaker.io/lts/en/index.htm#t=GameMaker_Language%2FGML_Overview%2FVariables_And_Variable_Scope.htm
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
-    Identifier,
+    Identifier(&'a str),
 
     // [^"\n]* means that there cannot be " and newline characters in the middle,
     // so only single-line strings are allowed
@@ -234,7 +236,6 @@ pub(crate) enum Token<'a> {
     &slice[1..slice.len()-1]
     })]
     String(&'a str),
-
 
     #[regex(r"\d+(\.\d+)?")]
     Number(&'a str),
@@ -367,7 +368,7 @@ impl fmt::Display for Token<'_> {
 
             // ----------------------------------------
             // region Literals
-            Token::Identifier => write!(f, "Identifier"),
+            Token::Identifier(s) => write!(f, "{}", s),
             Token::String(s) => write!(f, "{}", s),
             Token::Number(s) => write!(f, "{}", s),
             // endregion
@@ -535,8 +536,8 @@ mod tests {
     fn test_literals_identifiers_and_numbers() {
         let input = r#"my_ident another123 "hello \"world\"" 42 3.14"#;
         let expected = vec![
-            Token::Identifier,
-            Token::Identifier,
+            Token::Identifier("my_ident"),
+            Token::Identifier("another123"),
             Token::String(r#""hello \"world\"""#),
             Token::Number("42"),
             Token::Number("3.14"),
@@ -575,13 +576,13 @@ mod tests {
             Token::Newline,
             Token::If,
             Token::LeftParen,
-            Token::Identifier,
+            Token::Identifier("x"),
             Token::EqualEqual,
             Token::Number("10"),
             Token::RightParen,
             Token::LeftBrace,
             Token::Newline,
-            Token::Identifier,
+            Token::Identifier("x"),
             Token::PlusEqual,
             Token::Number("1"),
             Token::Semicolon,
@@ -590,9 +591,9 @@ mod tests {
             Token::Else,
             Token::LeftBrace,
             Token::Newline,
-            Token::Identifier,
+            Token::Identifier("x"),
             Token::Equal,
-            Token::Identifier,
+            Token::Identifier("x"),
             Token::Minus,
             Token::Number("1"),
             Token::Semicolon,

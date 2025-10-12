@@ -34,6 +34,7 @@ factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
 unary          → ( "!" | "~" | "+" | "-" ) unary
                | primary ;
 primary        → number | string | "true" | "false" | "null"
+               | identifier
                | "(" expression ")" ;
 */
 
@@ -73,6 +74,12 @@ where
         };
         // endregion
 
+        // region identifier
+        let identifier = select! {
+            Token::Identifier(x) => Expr::Identifier(x.to_string()),
+        };
+        // endregion
+
         // region primary
         let primary = choice((
             number,
@@ -80,6 +87,7 @@ where
             bool_true,
             bool_false,
             null,
+            identifier,
             expr.clone()
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
                 .map(|e| Expr::Paren(Box::new(e))),

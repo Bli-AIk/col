@@ -6,6 +6,7 @@ pub enum Expr {
     True(bool),
     False(bool),
     Null,
+    Identifier(String),
     Addition(Box<Expr>, Box<Expr>),
     Subtraction(Box<Expr>, Box<Expr>),
     Multiplication(Box<Expr>, Box<Expr>),
