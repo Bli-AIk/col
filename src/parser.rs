@@ -43,7 +43,7 @@ pub(crate) fn parser<'tokens, 'src: 'tokens, I>()
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
-    recursive(|expr| {
+    let expression = recursive(|expr| {
         // region number
         let number = select! {
             Token::Number(x) => Expr::Number(x.parse().unwrap()),
@@ -286,12 +286,20 @@ where
             .boxed();
         // endregion
 
-        // region expression
-        let expression = assignment;
-        // endregion
-
-        let result = expression;
+        let result = assignment;
         // Ignore NewLine for now
-        result.padded_by(just(Token::Newline).repeated()).boxed()
-    })
+        result //.padded_by(just(Token::Newline).repeated()).boxed()
+    });
+    /*
+    // region expr_stmt
+    let expr_stmt = expression
+        .clone()
+        .then(choice((just(Token::Semicolon), just(Token::Newline)))) // 只匹配一个终结符
+        .map(|(e, _)| e)
+        .boxed();
+    // endregion
+
+    expr_stmt
+    */
+    expression
 }

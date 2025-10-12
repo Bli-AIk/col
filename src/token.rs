@@ -195,7 +195,7 @@ pub(crate) enum Token<'a> {
 
     // ----------------------------------------
     // region Punctuations
-    #[regex(r"(?:\r\n|\n|\r)+")]
+    #[regex(r"(?:\r\n|\n|\r)")]
     Newline,
     #[token(";")]
     Semicolon,
