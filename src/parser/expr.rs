@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Expr {
     Num(f64),
     Var(String),
@@ -10,4 +11,5 @@ pub enum Expr {
     Div(Box<Expr>, Box<Expr>),
     Pos(Box<Expr>),
     Neg(Box<Expr>),
+    Paren(Box<Expr>),
 }

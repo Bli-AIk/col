@@ -18,7 +18,13 @@ where
             Token::Number(x) => Expr::Num(x.parse().unwrap()),
         };
 
-        let atom = number;
+        let atom = choice((
+            number.clone(),
+            expr.clone()
+                .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                .map(|e| Expr::Paren(Box::new(e))),
+        ));
+
         let unary = choice((
             just(Token::Plus)
                 .ignore_then(expr.clone())
