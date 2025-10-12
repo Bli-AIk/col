@@ -4,7 +4,8 @@ use logos::Logos;
 #[logos(skip r"[ \t]+")]
 #[logos(skip r"//[^\n]*")]
 #[logos(skip r"/\*([^*]|\*[^/])*\*/")]
-pub(crate) enum Token {
+#[derive(Clone)]
+pub(crate) enum Token<'a> {
     // region ---Keywords---
     // See: https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features.htm&rhsearch=globalvar
     #[token("repeat")]
@@ -229,8 +230,8 @@ pub(crate) enum Token {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
     Identifier,
     #[regex(r#""([^"\\]|\\.)*""#)]
-    String,
+    String(&'a str),
     #[regex(r"\d+(\.\d+)?")]
-    Number,
+    Number(&'a str),
     // endregion
 }
