@@ -91,7 +91,8 @@ where
             expr.clone()
                 .delimited_by(just(Token::LeftParen), just(Token::RightParen))
                 .map(|e| Expr::Paren(Box::new(e))),
-        ));
+        ))
+        .boxed();
         // endregion
 
         // region unary
@@ -111,104 +112,132 @@ where
                     .map(|e| Expr::Negative(Box::new(e))),
                 primary,
             ))
-        });
+        })
+        .boxed();
 
         // endregion
 
         // region factor
-        let factor = unary.clone().foldl(
-            choice((
-                just(Token::Star).to(Expr::Multiplication as fn(_, _) -> _),
-                just(Token::Slash).to(Expr::Division as fn(_, _) -> _),
-                just(Token::Percent).to(Expr::Percent as fn(_, _) -> _),
-            ))
-            .then(unary)
-            .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let factor = unary
+            .clone()
+            .foldl(
+                choice((
+                    just(Token::Star).to(Expr::Multiplication as fn(_, _) -> _),
+                    just(Token::Slash).to(Expr::Division as fn(_, _) -> _),
+                    just(Token::Percent).to(Expr::Percent as fn(_, _) -> _),
+                ))
+                .then(unary)
+                .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region term
-        let term = factor.clone().foldl(
-            choice((
-                just(Token::Plus).to(Expr::Addition as fn(_, _) -> _),
-                just(Token::Minus).to(Expr::Subtraction as fn(_, _) -> _),
-            ))
-            .then(factor)
-            .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let term = factor
+            .clone()
+            .foldl(
+                choice((
+                    just(Token::Plus).to(Expr::Addition as fn(_, _) -> _),
+                    just(Token::Minus).to(Expr::Subtraction as fn(_, _) -> _),
+                ))
+                .then(factor)
+                .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region comparison
-        let comparison = term.clone().foldl(
-            choice((
-                just(Token::Greater).to(Expr::Greater as fn(_, _) -> _),
-                just(Token::GreaterEqual).to(Expr::GreaterEqual as fn(_, _) -> _),
-                just(Token::Less).to(Expr::Less as fn(_, _) -> _),
-                just(Token::LessEqual).to(Expr::LessEqual as fn(_, _) -> _),
-            ))
-            .then(term)
-            .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let comparison = term
+            .clone()
+            .foldl(
+                choice((
+                    just(Token::Greater).to(Expr::Greater as fn(_, _) -> _),
+                    just(Token::GreaterEqual).to(Expr::GreaterEqual as fn(_, _) -> _),
+                    just(Token::Less).to(Expr::Less as fn(_, _) -> _),
+                    just(Token::LessEqual).to(Expr::LessEqual as fn(_, _) -> _),
+                ))
+                .then(term)
+                .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region equality
-        let equality = comparison.clone().foldl(
-            choice((
-                just(Token::EqualEqual).to(Expr::EqualEqual as fn(_, _) -> _),
-                just(Token::NotEqual).to(Expr::NotEqual as fn(_, _) -> _),
-            ))
-            .then(comparison)
-            .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let equality = comparison
+            .clone()
+            .foldl(
+                choice((
+                    just(Token::EqualEqual).to(Expr::EqualEqual as fn(_, _) -> _),
+                    just(Token::NotEqual).to(Expr::NotEqual as fn(_, _) -> _),
+                ))
+                .then(comparison)
+                .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region bit_and
-        let bit_and = equality.clone().foldl(
-            choice((just(Token::BitAnd).to(Expr::BitAnd as fn(_, _) -> _),))
-                .then(equality)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let bit_and = equality
+            .clone()
+            .foldl(
+                choice((just(Token::BitAnd).to(Expr::BitAnd as fn(_, _) -> _),))
+                    .then(equality)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region bit_xor
-        let bit_xor = bit_and.clone().foldl(
-            choice((just(Token::BitXor).to(Expr::BitXor as fn(_, _) -> _),))
-                .then(bit_and)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let bit_xor = bit_and
+            .clone()
+            .foldl(
+                choice((just(Token::BitXor).to(Expr::BitXor as fn(_, _) -> _),))
+                    .then(bit_and)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region bit_or
-        let bit_or = bit_xor.clone().foldl(
-            choice((just(Token::BitOr).to(Expr::BitOr as fn(_, _) -> _),))
-                .then(bit_xor)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let bit_or = bit_xor
+            .clone()
+            .foldl(
+                choice((just(Token::BitOr).to(Expr::BitOr as fn(_, _) -> _),))
+                    .then(bit_xor)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region logic_and
-        let logic_and = bit_or.clone().foldl(
-            choice((just(Token::And).to(Expr::And as fn(_, _) -> _),))
-                .then(bit_or)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let logic_and = bit_or
+            .clone()
+            .foldl(
+                choice((just(Token::And).to(Expr::And as fn(_, _) -> _),))
+                    .then(bit_or)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region logic_xor
-        let logic_xor = logic_and.clone().foldl(
-            choice((just(Token::Xor).to(Expr::Xor as fn(_, _) -> _),))
-                .then(logic_and)
-                .repeated(),
-            |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
-        );
+        let logic_xor = logic_and
+            .clone()
+            .foldl(
+                choice((just(Token::Xor).to(Expr::Xor as fn(_, _) -> _),))
+                    .then(logic_and)
+                    .repeated(),
+                |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
+            )
+            .boxed();
         // endregion
 
         // region logic_or

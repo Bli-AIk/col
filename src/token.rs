@@ -226,7 +226,8 @@ pub(crate) enum Token<'a> {
     // region Literals
 
     // See https://manual.gamemaker.io/lts/en/index.htm#t=GameMaker_Language%2FGML_Overview%2FVariables_And_Variable_Scope.htm
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
+    // Maximum length will be configurable in future
+    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]{0,63}")]
     Identifier(&'a str),
 
     // [^"\n]* means that there cannot be " and newline characters in the middle,
