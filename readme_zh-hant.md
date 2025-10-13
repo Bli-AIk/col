@@ -1,5 +1,13 @@
 # Configurable Open Language
 
+[![license](https://img.shields.io/github/license/Bli-AIk/col
+)](LICENSE)
+<img src="https://img.shields.io/github/repo-size/Bli-AIk/col.svg"/>
+<img src="https://img.shields.io/github/last-commit/Bli-AIk/col.svg"/>
+[![codecov](https://codecov.io/gh/Bli-AIk/col/graph/badge.svg?token=98QA8G15H1)](https://codecov.io/gh/Bli-AIk/col)
+
+<img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" />
+
 > **状态**：🚧 初始迭代中（功能与结构可能频繁变动）
 
 **Configurable Open Language (COL)** 是一个受 **Gamemaker Language (GML)** 启发的开源脚本语言。
