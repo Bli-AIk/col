@@ -1,25 +1,77 @@
-use crate::token::Token;
+use crate::token::*;
+use ariadne::{Color, Label, Report, ReportKind, Source};
+use chumsky::{input::Stream, prelude::*};
 use logos::Logos;
 use owo_colors::OwoColorize;
+use parser::*;
 use std::fs;
+use utils::colorize;
 
+mod parser;
 mod token;
+mod utils;
 
 fn main() {
-    let content = fs::read_to_string("Sample.gml").expect("Something went wrong reading the file");
-    let mut lex = Token::lexer(&content);
+    // Set to true for pretty-printing the AST
+    let is_pretty_print_ast = false;
+    let path = "Sample.gml";
+    let content = match fs::read_to_string(path) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!();
+            eprintln!(
+                "{} {}",
+                format!("Failed to read '{}':", path).bright_red(),
+                e
+            );
+            std::process::exit(1);
+        }
+    };
 
-    while let Some(result) = lex.next() {
-        match result {
-            Ok(token) => {
-                if token != Token::Newline {
-                    print!("{:?} ", token);
-                } else {
-                    print!("{:?} ", token.green());
-                    println!();
-                }
+    lex_with_output(&content);
+
+    let token_iter = Token::lexer(&content)
+        .spanned()
+        .map(|(tok, span)| match tok {
+            Ok(tok) => (tok, span.into()),
+            Err(_) => {
+                println!("Error token encountered: {:?}", &content[span.clone()]);
+                (Token::Error, span.into())
             }
-            Err(_) => println!("Error token encountered"),
+        });
+
+    let token_stream =
+        Stream::from_iter(token_iter).map((0..content.len()).into(), |(t, s): (_, _)| (t, s));
+
+    println!();
+    match program_parser().parse(token_stream).into_result() {
+        Ok(program) => {
+            let debug_str = if is_pretty_print_ast {
+                format!("{:#?}", program)
+            } else {
+                format!("{:?}", program)
+            };
+            println!(
+                "{} {}",
+                "Parsed:".green(),
+                colorize::colorize_brackets(&debug_str)
+            );
+        }
+        Err(errs) => {
+            for err in errs {
+                Report::build(ReportKind::Error, ((), err.span().into_range()))
+                    .with_config(ariadne::Config::new().with_index_type(ariadne::IndexType::Byte))
+                    //.with_code(1)
+                    .with_message(err.to_string())
+                    .with_label(
+                        Label::new(((), err.span().into_range()))
+                            .with_message(err.reason().to_string())
+                            .with_color(Color::Red),
+                    )
+                    .finish()
+                    .eprint(Source::from(&content))
+                    .unwrap();
+            }
         }
     }
 }
