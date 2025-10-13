@@ -13,16 +13,19 @@ pub fn colorize_brackets(input: &str) -> String {
     let mut depth: usize = 0;
 
     let mut buf = String::new();
-    let flush_buf = |buf: &mut String, out: &mut String, depth: usize, colors: &[&dyn Fn(&str) -> String]| {
-        if buf.is_empty() { return; }
-        if depth > 0 {
-            let color_fn = colors[depth % colors.len()];
-            out.push_str(&color_fn(&buf));
-        } else {
-            out.push_str(&buf);
-        }
-        buf.clear();
-    };
+    let flush_buf =
+        |buf: &mut String, out: &mut String, depth: usize, colors: &[&dyn Fn(&str) -> String]| {
+            if buf.is_empty() {
+                return;
+            }
+            if depth > 0 {
+                let color_fn = colors[depth % colors.len()];
+                out.push_str(&color_fn(&buf));
+            } else {
+                out.push_str(&buf);
+            }
+            buf.clear();
+        };
 
     while let Some(c) = chars.next() {
         // preserve existing ANSI sequences starting with ESC '[' ... 'm'
@@ -31,12 +34,16 @@ pub fn colorize_brackets(input: &str) -> String {
 
             let mut esc = String::new();
             esc.push('\x1b');
-            if let Some(br) = chars.next() { esc.push(br); }
+            if let Some(br) = chars.next() {
+                esc.push(br);
+            }
             while let Some(&nc) = chars.peek() {
                 let nc = nc;
                 chars.next();
                 esc.push(nc);
-                if nc == 'm' { break; }
+                if nc == 'm' {
+                    break;
+                }
             }
             out.push_str(&esc);
             continue;

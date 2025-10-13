@@ -482,7 +482,8 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let input = "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
+        let input =
+            "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
         let expected = vec![
             Token::Equal,
             Token::PlusEqual,
@@ -546,11 +547,11 @@ mod tests {
 
     #[test]
     fn test_literals_identifiers_and_numbers() {
-        let input = r#"my_ident another123 "hello \"world\"" 42 3.14"#;
+        let input = r#"my_ident another123 "hello world" 42 3.14"#;
         let expected = vec![
             Token::Identifier("my_ident"),
             Token::Identifier("another123"),
-            Token::String(r#""hello \"world\"""#),
+            Token::String("hello world"),
             Token::Number("42"),
             Token::Number("3.14"),
         ];

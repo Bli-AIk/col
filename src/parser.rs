@@ -7,10 +7,10 @@ use chumsky::{input::ValueInput, prelude::*};
 /*
 ----------------------------------------------------------------------------------------------------
 WARNING!!!
-Before making any changes to the code, always review this BNF comment block. 
-After modifying the code, 
-**immediately update this BNF comment** to ensure it remains consistent with the implementation. 
-This comment block must not be removed, 
+Before making any changes to the code, always review this BNF comment block.
+After modifying the code,
+**immediately update this BNF comment** to ensure it remains consistent with the implementation.
+This comment block must not be removed,
 as it serves as the authoritative reference for the language syntax.
 ----------------------------------------------------------------------------------------------------
 
@@ -209,11 +209,7 @@ where
                         .or_not(),
                 )
                 .map(|((cond, then_stmt), else_stmt)| {
-                    Stmt::If(
-                        Box::new(cond),
-                        Box::new(then_stmt),
-                        else_stmt.map(Box::new),
-                    )
+                    Stmt::If(Box::new(cond), Box::new(then_stmt), else_stmt.map(Box::new))
                 })
         });
         // endregion
@@ -241,13 +237,11 @@ where
         let repeat_stmt = just(Token::Repeat)
             .ignore_then(
                 expr.clone()
-                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
             )
             .then_ignore(just(Token::Newline).repeated())
             .then(statement.clone())
-            .map(|(count, body)| {
-                body.map(|stmt| Stmt::Repeat(Box::new(count), Box::new(stmt)))
-            });
+            .map(|(count, body)| body.map(|stmt| Stmt::Repeat(Box::new(count), Box::new(stmt))));
         // endregion
 
         // region while_stmt
@@ -255,13 +249,11 @@ where
             .ignore_then(
                 expr.clone()
                     .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-                    .or(expr.clone())
+                    .or(expr.clone()),
             )
             .then_ignore(just(Token::Newline).repeated())
             .then(statement.clone())
-            .map(|(cond, body)| {
-                body.map(|stmt| Stmt::While(Box::new(cond), Box::new(stmt)))
-            });
+            .map(|(cond, body)| body.map(|stmt| Stmt::While(Box::new(cond), Box::new(stmt))));
         // endregion
 
         // region do_until_stmt
@@ -272,38 +264,32 @@ where
             .then_ignore(just(Token::Until))
             .then(
                 expr.clone()
-                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
             )
             .then_ignore(terminator.clone())
-            .map(|(body, cond)| {
-                body.map(|stmt| Stmt::DoUntil(Box::new(stmt), Box::new(cond)))
-            });
+            .map(|(body, cond)| body.map(|stmt| Stmt::DoUntil(Box::new(stmt), Box::new(cond))));
         // endregion
 
         // region for_stmt
         let for_stmt = just(Token::For)
             .ignore_then(just(Token::LeftParen))
-            .ignore_then(
-                choice((
-                    just(Token::Var)
-                        .ignore_then(
-                            select! { Token::Identifier(s) => s.to_string() }
-                                .then(just(Token::Equal).ignore_then(expr.clone()).or_not())
-                        )
-                        .map(|(name, init)| Some(Box::new(Stmt::Var(vec![(name, init)])))),
-                    expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
-                    just(Token::Semicolon).to(None),
-                ))
-            )
+            .ignore_then(choice((
+                just(Token::Var)
+                    .ignore_then(
+                        select! { Token::Identifier(s) => s.to_string() }
+                            .then(just(Token::Equal).ignore_then(expr.clone()).or_not()),
+                    )
+                    .map(|(name, init)| Some(Box::new(Stmt::Var(vec![(name, init)])))),
+                expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
+                just(Token::Semicolon).to(None),
+            )))
             .then_ignore(just(Token::Semicolon).or_not())
             .then(expr.clone().or_not().map(|e| e.map(Box::new)))
             .then_ignore(just(Token::Semicolon))
-            .then(
-                choice((
-                    expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
-                    empty().to(None),
-                ))
-            )
+            .then(choice((
+                expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
+                empty().to(None),
+            )))
             .then_ignore(just(Token::RightParen))
             .then_ignore(just(Token::Newline).repeated())
             .then(statement.clone())
@@ -443,12 +429,10 @@ where
         let postfix = choice((
             // Postfix increment/decrement only work on identifiers
             select! { Token::Identifier(s) => s.to_string() }
-                .then(
-                    choice((
-                        just(Token::Increment).to(Expr::PostIncrement as fn(_) -> _),
-                        just(Token::Decrement).to(Expr::PostDecrement as fn(_) -> _),
-                    ))
-                )
+                .then(choice((
+                    just(Token::Increment).to(Expr::PostIncrement as fn(_) -> _),
+                    just(Token::Decrement).to(Expr::PostDecrement as fn(_) -> _),
+                )))
                 .map(|(id, op)| op(Box::new(Expr::Identifier(id)))),
             // All other unary expressions (without postfix operators)
             unary.clone(),
