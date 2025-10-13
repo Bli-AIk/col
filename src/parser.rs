@@ -29,7 +29,8 @@ exprStmt       -> [expression] terminator ;
 varStmt        -> "var" variableDecl ("," variableDecl)* terminator;
 variableDecl   -> IDENTIFIER ("=" expression)?;
 
-ifStmt         -> "if" "(" expression ")" "then"? statement ("else" statement)? ;
+ifStmt         -> "if" ("(" expression ")" | expression) "then"? statement ("else" statement)? ;
+
 
 terminator     -> ( ";" | newline )+
 ---
@@ -108,10 +109,12 @@ where
     let if_stmt = just(Token::If)
         .ignore_then(
             expr.clone()
-                .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+                .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                .or(expr.clone()),
         )
         .then_ignore(just(Token::Then).or_not())
         .then(statement_parser.clone())
+        .then_ignore(just(Token::Newline).repeated())
         .then(
             just(Token::Else)
                 .ignore_then(statement_parser.clone())
