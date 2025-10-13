@@ -283,15 +283,12 @@ where
                     )
                     .map(|(name, init)| Some(Box::new(Stmt::Var(vec![(name, init)])))),
                 expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
-                just(Token::Semicolon).to(None),
+                empty().to(None), // Allow empty init - this should come before semicolon
             )))
-            .then_ignore(just(Token::Semicolon).or_not())
+            .then_ignore(just(Token::Semicolon))
             .then(expr.clone().or_not().map(|e| e.map(Box::new)))
             .then_ignore(just(Token::Semicolon))
-            .then(choice((
-                expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
-                empty().to(None),
-            )))
+            .then(expr.clone().or_not().map(|e| e.map(|ex| Box::new(Stmt::Expr(ex)))))
             .then_ignore(just(Token::RightParen))
             .then_ignore(just(Token::Newline).repeated())
             .then(statement.clone())
@@ -583,49 +580,55 @@ where
             .boxed();
         // endregion
 
-        // region Ternary operator
-        let ternary = logic_or
-            .clone()
-            .then(
-                just(Token::Question)
-                    .ignore_then(expr.clone())
-                    .then_ignore(just(Token::Colon))
-                    .then(logic_or.clone()) // Ternary has specific precedence
-                    .or_not(),
-            )
-            .map(|(cond, opt)| {
-                if let Some((then_branch, else_branch)) = opt {
-                    Expr::Ternary(Box::new(cond), Box::new(then_branch), Box::new(else_branch))
-                } else {
-                    cond
-                }
-            })
-            .boxed();
+        // region Ternary operator (right-associative)
+        let ternary = recursive(|ternary| {
+            logic_or
+                .clone()
+                .then(
+                    just(Token::Question)
+                        .ignore_then(expr.clone())
+                        .then_ignore(just(Token::Colon))
+                        .then(ternary)
+                        .or_not(),
+                )
+                .map(|(cond, opt)| {
+                    if let Some((then_branch, else_branch)) = opt {
+                        Expr::Ternary(Box::new(cond), Box::new(then_branch), Box::new(else_branch))
+                    } else {
+                        cond
+                    }
+                })
+        });
+        
+        let ternary = ternary.boxed();
         // endregion
 
-        // region Assignment
-        ternary
-            .clone()
-            .then(
-                choice((
-                    just(Token::Equal).to(Expr::Equal as fn(_, _) -> _),
-                    just(Token::PlusEqual).to(Expr::PlusEqual as fn(_, _) -> _),
-                    just(Token::MinusEqual).to(Expr::MinusEqual as fn(_, _) -> _),
-                    just(Token::StarEqual).to(Expr::StarEqual as fn(_, _) -> _),
-                    just(Token::SlashEqual).to(Expr::SlashEqual as fn(_, _) -> _),
-                    just(Token::PercentEqual).to(Expr::PercentEqual as fn(_, _) -> _),
-                ))
-                .then(ternary)
-                .or_not(),
-            )
-            .map(|(lhs, opt)| {
-                if let Some((op, rhs)) = opt {
-                    op(Box::new(lhs), Box::new(rhs))
-                } else {
-                    lhs
-                }
-            })
-            .boxed()
+        // region Assignment (right-associative)
+        let assignment = recursive(|assignment| {
+            ternary
+                .clone()
+                .then(
+                    choice((
+                        just(Token::Equal).to(Expr::Equal as fn(_, _) -> _),
+                        just(Token::PlusEqual).to(Expr::PlusEqual as fn(_, _) -> _),
+                        just(Token::MinusEqual).to(Expr::MinusEqual as fn(_, _) -> _),
+                        just(Token::StarEqual).to(Expr::StarEqual as fn(_, _) -> _),
+                        just(Token::SlashEqual).to(Expr::SlashEqual as fn(_, _) -> _),
+                        just(Token::PercentEqual).to(Expr::PercentEqual as fn(_, _) -> _),
+                    ))
+                    .then(assignment)
+                    .or_not(),
+                )
+                .map(|(lhs, opt)| {
+                    if let Some((op, rhs)) = opt {
+                        op(Box::new(lhs), Box::new(rhs))
+                    } else {
+                        lhs
+                    }
+                })
+        });
+        
+        assignment.boxed()
         // endregion
     })
 }
