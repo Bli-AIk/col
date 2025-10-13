@@ -28,6 +28,12 @@ pub enum Stmt {
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
     Block(Vec<Stmt>),
     Return(Option<Expr>),
+    Break,
+    Continue,
+    Repeat(Box<Expr>, Box<Stmt>),
+    While(Box<Expr>, Box<Stmt>),
+    DoUntil(Box<Stmt>, Box<Expr>),
+    For(Option<Box<Stmt>>, Option<Box<Expr>>, Option<Box<Stmt>>, Box<Stmt>),
 }
 
 #[derive(Debug, Clone)]
@@ -63,4 +69,13 @@ pub enum Expr {
     Or(Box<Expr>, Box<Expr>),
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     Equal(Box<Expr>, Box<Expr>),
+    PlusEqual(Box<Expr>, Box<Expr>),
+    MinusEqual(Box<Expr>, Box<Expr>),
+    StarEqual(Box<Expr>, Box<Expr>),
+    SlashEqual(Box<Expr>, Box<Expr>),
+    PercentEqual(Box<Expr>, Box<Expr>),
+    PreIncrement(Box<Expr>),
+    PostIncrement(Box<Expr>),
+    PreDecrement(Box<Expr>),
+    PostDecrement(Box<Expr>),
 }

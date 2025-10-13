@@ -29,7 +29,11 @@ statement      -> exprStmt
                | varStmt
                | ifStmt
                | returnStmt
+               | breakStmt
+               | continueStmt
+               | repeatStmt
                | whileStmt
+               | doUntilStmt
                | forStmt
                | block ;
 
@@ -42,26 +46,39 @@ ifStmt         -> "if" ("(" expression ")" | expression) "then"? ifBranch ("else
 
 ifBranch       -> statement_no_term | block ;
 
+returnStmt     -> "return" expression? terminator ;
+breakStmt      -> "break" terminator ;
+continueStmt   -> "continue" terminator ;
+
+repeatStmt     -> "repeat" "(" expression ")" statement ;
+whileStmt      -> "while" ("(" expression ")" | expression) statement ;
+doUntilStmt    -> "do" statement "until" "(" expression ")" terminator ;
+forStmt        -> "for" "(" (varStmt_no_term | exprStmt_no_term | ";") expression? ";" (exprStmt_no_term)? ")" statement ;
+
 statement_no_term -> exprStmt_no_term
                   | varStmt_no_term
                   | returnStmt_no_term
+                  | breakStmt_no_term
+                  | continueStmt_no_term
                   | ifStmt
                   | block ;
 
-exprStmt_no_term    -> expression ;
-varStmt_no_term     -> "var" variableDecl ("," variableDecl)* ;
-returnStmt_no_term  -> "return" expression? ;
+exprStmt_no_term     -> expression ;
+varStmt_no_term      -> "var" variableDecl ("," variableDecl)* ;
+returnStmt_no_term   -> "return" expression? ;
+breakStmt_no_term    -> "break" ;
+continueStmt_no_term -> "continue" ;
 
 terminator     -> ( ";" | newline )+
 ---
 
 expression     -> assignment ;
 
-assignment     -> ternary ( "=" ternary )? ;
+assignment     -> ternary ( ("=" | "+=" | "-=" | "*=" | "/=" | "%=") ternary )? ;
 
 ternary        -> logic_or ( "?" expression ":" ternary )? ;
 
-logic_or       -> logic_and ( "||" logic_and )* ;
+logic_or       -> logic_xor ( "||" logic_xor )* ;
 logic_xor      -> logic_and ( "^^" logic_and )* ;
 logic_and      -> bit_or ( "&&" bit_or )* ;
 bit_or         -> bit_xor ( "|" bit_xor )* ;
@@ -70,11 +87,12 @@ bit_and        -> equality ( "&" equality )* ;
 equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           -> factor ( ( "-" | "+" ) factor )* ;
-factor         -> unary ( ( "/" | "*" | "%" ) unary )* ;
-unary          -> ( "!" | "~" | "+" | "-" ) unary
+factor         -> postfix ( ( "/" | "*" | "%" ) postfix )* ;
+postfix        -> unary ( "++" | "--" )? ;
+unary          -> ( "!" | "~" | "+" | "-" | "++" | "--" ) unary
                | primary ;
 primary & atom -> number | string | "true" | "false" | "null"
-               | identifier
+               | identifier ( "(" ( expression ( "," expression )* )? ")" )?
                | "(" expression ")" ;
 */
 
@@ -158,11 +176,16 @@ where
                 .ignore_then(expr.clone().or_not())
                 .map(Stmt::Return);
 
+            let break_stmt_no_term = just(Token::Break).map(|_| Stmt::Break);
+            let continue_stmt_no_term = just(Token::Continue).map(|_| Stmt::Continue);
+
             let body = choice((
                 block,
                 if_stmt,
                 var_stmt_no_term,
                 return_stmt_no_term,
+                break_stmt_no_term,
+                continue_stmt_no_term,
                 expr.clone().map(Stmt::Expr),
             ));
 
@@ -201,11 +224,104 @@ where
             .map(|expr_opt| Some(Stmt::Return(expr_opt)));
         // endregion
 
+        // region break_stmt
+        let break_stmt = just(Token::Break)
+            .then_ignore(terminator.clone())
+            .map(|_| Some(Stmt::Break));
+        // endregion
+
+        // region continue_stmt
+        let continue_stmt = just(Token::Continue)
+            .then_ignore(terminator.clone())
+            .map(|_| Some(Stmt::Continue));
+        // endregion
+
+        // region repeat_stmt
+        let repeat_stmt = just(Token::Repeat)
+            .ignore_then(
+                expr.clone()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+            )
+            .then_ignore(just(Token::Newline).repeated())
+            .then(statement.clone())
+            .map(|(count, body)| {
+                body.map(|stmt| Stmt::Repeat(Box::new(count), Box::new(stmt)))
+            });
+        // endregion
+
+        // region while_stmt
+        let while_stmt = just(Token::While)
+            .ignore_then(
+                expr.clone()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                    .or(expr.clone())
+            )
+            .then_ignore(just(Token::Newline).repeated())
+            .then(statement.clone())
+            .map(|(cond, body)| {
+                body.map(|stmt| Stmt::While(Box::new(cond), Box::new(stmt)))
+            });
+        // endregion
+
+        // region do_until_stmt
+        let do_until_stmt = just(Token::Do)
+            .ignore_then(just(Token::Newline).repeated())
+            .ignore_then(statement.clone())
+            .then_ignore(just(Token::Newline).repeated())
+            .then_ignore(just(Token::Until))
+            .then(
+                expr.clone()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+            )
+            .then_ignore(terminator.clone())
+            .map(|(body, cond)| {
+                body.map(|stmt| Stmt::DoUntil(Box::new(stmt), Box::new(cond)))
+            });
+        // endregion
+
+        // region for_stmt
+        let for_stmt = just(Token::For)
+            .ignore_then(just(Token::LeftParen))
+            .ignore_then(
+                choice((
+                    just(Token::Var)
+                        .ignore_then(
+                            select! { Token::Identifier(s) => s.to_string() }
+                                .then(just(Token::Equal).ignore_then(expr.clone()).or_not())
+                        )
+                        .map(|(name, init)| Some(Box::new(Stmt::Var(vec![(name, init)])))),
+                    expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
+                    just(Token::Semicolon).to(None),
+                ))
+            )
+            .then_ignore(just(Token::Semicolon).or_not())
+            .then(expr.clone().or_not().map(|e| e.map(Box::new)))
+            .then_ignore(just(Token::Semicolon))
+            .then(
+                choice((
+                    expr.clone().map(|e| Some(Box::new(Stmt::Expr(e)))),
+                    empty().to(None),
+                ))
+            )
+            .then_ignore(just(Token::RightParen))
+            .then_ignore(just(Token::Newline).repeated())
+            .then(statement.clone())
+            .map(|(((init, cond), update), body)| {
+                body.map(|stmt| Stmt::For(init, cond, update, Box::new(stmt)))
+            });
+        // endregion
+
         choice((
             expr_stmt.clone(),
             var_stmt.clone(),
             if_stmt.map(Some),
             return_stmt.clone(),
+            break_stmt.clone(),
+            continue_stmt.clone(),
+            repeat_stmt.clone(),
+            while_stmt.clone(),
+            do_until_stmt.clone(),
+            for_stmt.clone(),
             block,
         ))
     });
@@ -309,14 +425,40 @@ where
                 just(Token::Minus)
                     .ignore_then(unary.clone())
                     .map(|e| Expr::Negative(Box::new(e))),
+                just(Token::Increment)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::PreIncrement(Box::new(e))),
+                just(Token::Decrement)
+                    .ignore_then(unary.clone())
+                    .map(|e| Expr::PreDecrement(Box::new(e))),
                 atom, // Use atom here instead of the old 'primary'
             ))
         })
         .boxed();
         // endregion
 
+        // region Postfix operators (increment/decrement)
+        let postfix = unary
+            .clone()
+            .then(
+                choice((
+                    just(Token::Increment).to(Expr::PostIncrement as fn(_) -> _),
+                    just(Token::Decrement).to(Expr::PostDecrement as fn(_) -> _),
+                ))
+                .or_not(),
+            )
+            .map(|(expr, op_opt)| {
+                if let Some(op) = op_opt {
+                    op(Box::new(expr))
+                } else {
+                    expr
+                }
+            })
+            .boxed();
+        // endregion
+
         // region Multiplication, division, modulo
-        let factor = unary
+        let factor = postfix
             .clone()
             .foldl(
                 choice((
@@ -324,7 +466,7 @@ where
                     just(Token::Slash).to(Expr::Division as fn(_, _) -> _),
                     just(Token::Percent).to(Expr::Percent as fn(_, _) -> _),
                 ))
-                .then(unary)
+                .then(postfix)
                 .repeated(),
                 |lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)),
             )
@@ -480,10 +622,16 @@ where
         ternary
             .clone()
             .then(
-                just(Token::Equal)
-                    .to(Expr::Equal as fn(_, _) -> _)
-                    .then(ternary)
-                    .or_not(),
+                choice((
+                    just(Token::Equal).to(Expr::Equal as fn(_, _) -> _),
+                    just(Token::PlusEqual).to(Expr::PlusEqual as fn(_, _) -> _),
+                    just(Token::MinusEqual).to(Expr::MinusEqual as fn(_, _) -> _),
+                    just(Token::StarEqual).to(Expr::StarEqual as fn(_, _) -> _),
+                    just(Token::SlashEqual).to(Expr::SlashEqual as fn(_, _) -> _),
+                    just(Token::PercentEqual).to(Expr::PercentEqual as fn(_, _) -> _),
+                ))
+                .then(ternary)
+                .or_not(),
             )
             .map(|(lhs, opt)| {
                 if let Some((op, rhs)) = opt {

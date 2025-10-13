@@ -171,6 +171,10 @@ pub(crate) enum Token<'a> {
     ShiftRight,
 
     // Arithmetical (+, -, *, /)
+    #[token("++")]
+    Increment,
+    #[token("--")]
+    Decrement,
     #[token("+")]
     Plus,
     #[token("-")]
@@ -340,6 +344,8 @@ impl fmt::Display for Token<'_> {
             Token::ShiftRight => write!(f, ">>"),
 
             // Arithmetical (+, -, *, /)
+            Token::Increment => write!(f, "++"),
+            Token::Decrement => write!(f, "--"),
             Token::Plus => write!(f, "+"),
             Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),
@@ -476,7 +482,7 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let input = "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> + - * / % ! ~";
+        let input = "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
         let expected = vec![
             Token::Equal,
             Token::PlusEqual,
@@ -500,6 +506,8 @@ mod tests {
             Token::BitXor,
             Token::ShiftLeft,
             Token::ShiftRight,
+            Token::Increment,
+            Token::Decrement,
             Token::Plus,
             Token::Minus,
             Token::Star,
