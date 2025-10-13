@@ -222,7 +222,7 @@ mod tests {
                     if (i % 2 == 0) acc += i;
                     else acc += -+i;
                 }
-                // 下面这一行含有对字面量的 ++（非法）
+                // The following line contains ++ (illegal) for a literal
                 acc += ++1;
                 return acc;
             }
@@ -244,16 +244,16 @@ mod tests {
                         res += b * (k + 1);
                     }
                 }
-                // 前缀与后缀与普通一元混合（注意避免产生 '+++' 之类的长符号串）
-                res += -++a; // '-' 然后 '++' identifier -> 合法
-                res += d++ * ++e; // d++ (postfix)、++e (prefix on identifier) -> 合法
+                // Prefixes and suffixes are mixed with ordinary unary (be careful to avoid producing long symbol strings such as '+++')
+                res += -++a; // '-' then '++' identifier -> legal
+                res += d++ * ++e; // d++ (postfix)、++e (prefix on identifier) -> legal
                 return res ? res : 0;
             }
 
             function caller() {
                 var id = 1;
-                foo(id++); // 后缀 ++ 作为函数参数（标识符后缀允许）
-                foo(++id); // 前缀 ++（允许）
+                foo(id++); // Suffix ++ as function parameters (identifier suffix allowed)
+                foo(++id); // Prefix ++ (illegal)
             }
 
             var total = sum_and_map(1, 2);
