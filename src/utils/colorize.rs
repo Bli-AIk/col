@@ -25,6 +25,7 @@ pub fn colorize_brackets(input: &str) -> String {
     };
 
     while let Some(c) = chars.next() {
+        // preserve existing ANSI sequences starting with ESC '[' ... 'm'
         if c == '\x1b' && chars.peek() == Some(&'[') {
             flush_buf(&mut buf, &mut out, depth, &colors);
 
@@ -42,22 +43,38 @@ pub fn colorize_brackets(input: &str) -> String {
         }
 
         match c {
-            '(' => {
+            // opening brackets: color with current depth then increase depth
+            '(' | '[' | '{' => {
                 flush_buf(&mut buf, &mut out, depth, &colors);
                 let color_fn = colors[depth % colors.len()];
-                out.push_str(&color_fn("("));
+                let s = match c {
+                    '(' => "(",
+                    '[' => "[",
+                    '{' => "{",
+                    _ => unreachable!(),
+                };
+                out.push_str(&color_fn(s));
                 depth = depth.saturating_add(1);
             }
-            ')' => {
+
+            // closing brackets: flush, decrease depth (if possible), then color using new depth
+            ')' | ']' | '}' => {
                 flush_buf(&mut buf, &mut out, depth, &colors);
+                let closing = match c {
+                    ')' => ")",
+                    ']' => "]",
+                    '}' => "}",
+                    _ => unreachable!(),
+                };
                 if depth > 0 {
                     depth -= 1;
                     let color_fn = colors[depth % colors.len()];
-                    out.push_str(&color_fn(")"));
+                    out.push_str(&color_fn(closing));
                 } else {
-                    out.push(')');
+                    out.push_str(closing);
                 }
             }
+
             other => {
                 buf.push(other);
             }
