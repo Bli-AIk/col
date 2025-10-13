@@ -105,6 +105,8 @@ pub(crate) enum Token<'a> {
     // See https://manual.gamemaker.io/monthly/en/#t=GameMaker_Language%2FGML_Overview%2FLanguage_Features%2FIf_Else_and_Conditional_Operators.htm&rhsearch=globalvar
     #[token("if")]
     If,
+    #[token("then")]
+    Then,
     #[token("else")]
     Else,
 
@@ -299,6 +301,7 @@ impl fmt::Display for Token<'_> {
 
             // ControlFlow (If/Else)
             Token::If => write!(f, "if"),
+            Token::Then => write!(f, "then"),
             Token::Else => write!(f, "else"),
             // endregion
 
