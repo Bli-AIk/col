@@ -66,13 +66,31 @@ where
     // endregion
 
     // region ExprStmt
-    let expr_stmt = expr_parser().or_not().then_ignore(terminator.clone());
+    let expr_stmt = expr_parser()
+        .or_not()
+        .then_ignore(terminator.clone())
+        .map(|expr_opt| expr_opt.map(Stmt::Expr));
+    // endregion
+
+    // region VarStmt
+    let variable_decl = select! { Token::Identifier(s) => s.to_string() }
+        .then(just(Token::Equal).ignore_then(expr_parser()).or_not());
+
+    let var_stmt = just(Token::Var)
+        .ignore_then(
+            variable_decl
+                .separated_by(just(Token::Comma))
+                .at_least(1)
+                .collect::<Vec<_>>(),
+        )
+        .then_ignore(terminator.clone())
+        .map(|vars| Some(Stmt::Var(vars)));
     // endregion
 
     // region Statement
     let statement = choice((
         expr_stmt,
-        // var_stmt,
+        var_stmt,
         // if_stmt,
         // while_stmt,
     ));
@@ -83,7 +101,7 @@ where
     let block = statement
         .repeated()
         .collect::<Vec<_>>()
-        .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
+        .map(|stmts| stmts.into_iter().flatten().collect())
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
     // endregion
 

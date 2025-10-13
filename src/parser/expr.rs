@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct Func {
     pub args: Vec<String>,
-    pub body: Vec<Expr>,
+    pub body: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone)]

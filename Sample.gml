@@ -5,6 +5,7 @@ function main(a, b, c) {
 
 ;
 
-a;
+var a = 42;
+var a = 42, b, c = "24";
 
 }
