@@ -109,13 +109,25 @@ where
         .then(statement_parser.clone())
         .then(just(Token::Else).ignore_then(statement_parser.clone()).or_not())
         .map(|((cond, then_opt), else_opt)| {
-            let then_stmt = then_opt.unwrap_or_else(|| Stmt::Block(Vec::new()));
-            let else_stmt = match else_opt {
-                None => None, // No else branch
-                Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else with empty statement
-                Some(Some(stmt)) => Some(Box::new(stmt)), // else with a statement
+            // Ensure the 'then' branch is a block.
+            let then_block = match then_opt.unwrap_or_else(|| Stmt::Block(Vec::new())) {
+                Stmt::Block(stmts) => Stmt::Block(stmts),
+                other_stmt => Stmt::Block(vec![other_stmt]),
             };
-            Some(Stmt::If(Box::new(cond), Box::new(then_stmt), else_stmt))
+
+            // Ensure the 'else' branch, if it exists, is a block.
+            let else_block = match else_opt {
+                None => None, // No else branch
+                Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else {}
+                Some(Some(stmt)) => {
+                    let else_stmt = match stmt {
+                        Stmt::Block(stmts) => Stmt::Block(stmts),
+                        other_stmt => Stmt::Block(vec![other_stmt]),
+                    };
+                    Some(Box::new(else_stmt))
+                }
+            };
+            Some(Stmt::If(Box::new(cond), Box::new(then_block), else_block))
         });
 
     statement_parser.define(choice((
