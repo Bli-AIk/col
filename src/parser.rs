@@ -5,14 +5,23 @@ use crate::token::*;
 use chumsky::{input::ValueInput, prelude::*};
 
 /*
+----------------------------------------------------------------------------------------------------
+WARNING!!!
+Before making any changes to the code, always review this BNF comment block. 
+After modifying the code, 
+**immediately update this BNF comment** to ensure it remains consistent with the implementation. 
+This comment block must not be removed, 
+as it serves as the authoritative reference for the language syntax.
+----------------------------------------------------------------------------------------------------
+
+
+
 program        -> top_level* EOF ;
 
-top_level      -> statement
-               | function ;
+top_level      -> statement ";"? | function ;
 
 function       -> "function" identifier "(" parameters? ")" block ;
 parameters     -> identifier ( "," identifier )* ;
-
 
 block          -> "{" statement* "}" ;
 
@@ -24,13 +33,24 @@ statement      -> exprStmt
                | forStmt
                | block ;
 
-exprStmt       -> [expression] terminator ;
+exprStmt       -> expression terminator ;
 
-varStmt        -> "var" variableDecl ("," variableDecl)* terminator;
-variableDecl   -> IDENTIFIER ("=" expression)?;
+varStmt        -> "var" variableDecl ("," variableDecl)* terminator ;
+variableDecl   -> IDENTIFIER ("=" expression)? ;
 
-ifStmt         -> "if" ("(" expression ")" | expression) "then"? statement ("else" statement)? ;
+ifStmt         -> "if" ("(" expression ")" | expression) "then"? ifBranch ("else" ifBranch)? ;
 
+ifBranch       -> statement_no_term | block ;
+
+statement_no_term -> exprStmt_no_term
+                  | varStmt_no_term
+                  | returnStmt_no_term
+                  | ifStmt
+                  | block ;
+
+exprStmt_no_term    -> expression ;
+varStmt_no_term     -> "var" variableDecl ("," variableDecl)* ;
+returnStmt_no_term  -> "return" expression? ;
 
 terminator     -> ( ";" | newline )+
 ---
@@ -134,10 +154,15 @@ where
                 )
                 .map(Stmt::Var);
 
+            let return_stmt_no_term = just(Token::Return)
+                .ignore_then(expr.clone().or_not())
+                .map(Stmt::Return);
+
             let body = choice((
                 block,
                 if_stmt,
                 var_stmt_no_term,
+                return_stmt_no_term,
                 expr.clone().map(Stmt::Expr),
             ));
 
@@ -169,10 +194,18 @@ where
         });
         // endregion
 
+        // region return_stmt
+        let return_stmt = just(Token::Return)
+            .ignore_then(expr.clone().or_not())
+            .then_ignore(terminator.clone())
+            .map(|expr_opt| Some(Stmt::Return(expr_opt)));
+        // endregion
+
         choice((
             expr_stmt.clone(),
             var_stmt.clone(),
             if_stmt.map(Some),
+            return_stmt.clone(),
             block,
         ))
     });

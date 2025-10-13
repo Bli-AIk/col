@@ -27,6 +27,7 @@ pub enum Stmt {
     Var(Vec<(String, Option<Expr>)>),
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
     Block(Vec<Stmt>),
+    Return(Option<Expr>),
 }
 
 #[derive(Debug, Clone)]
