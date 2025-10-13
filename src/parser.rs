@@ -2,7 +2,7 @@ mod expr;
 
 use crate::parser::expr::{Expr, Func, FuncDef, Program, Stmt, TopLevel};
 use crate::token::*;
-use chumsky::{input::ValueInput, prelude::*, recursive::Recursive};
+use chumsky::{input::ValueInput, prelude::*};
 
 /*
 program        -> top_level* EOF ;
@@ -64,102 +64,109 @@ pub(crate) fn program_parser<'tokens, 'src: 'tokens, I>()
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
-    // region Terminator
+    // region terminator
     let terminator = choice((just(Token::Semicolon), just(Token::Newline)))
         .repeated()
         .at_least(1)
         .ignored();
     // endregion
 
-    // region Expressions and Statements (recursively defined)
-    let mut statement_parser = Recursive::declare();
+    // region statement
     let expr = expr_parser();
 
-    let expr_stmt = expr
-        .clone()
-        .or_not()
-        .then_ignore(terminator.clone())
-        .map(|expr_opt| expr_opt.map(Stmt::Expr));
+    let statement = recursive(|statement| {
+        // region expr_stmt
+        let expr_stmt = expr
+            .clone()
+            .or_not()
+            .then_ignore(terminator.clone())
+            .map(|expr_opt| expr_opt.map(Stmt::Expr));
+        // endregion
 
-    let variable_decl = select! { Token::Identifier(s) => s.to_string() }
-        .then(just(Token::Equal).ignore_then(expr.clone()).or_not());
+        // region var_stmt
+        let variable_decl = select! { Token::Identifier(s) => s.to_string() }
+            .then(just(Token::Equal).ignore_then(expr.clone()).or_not());
 
-    let var_stmt = just(Token::Var)
-        .ignore_then(
-            variable_decl
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .at_least(1)
-                .collect::<Vec<_>>(),
-        )
-        .then_ignore(terminator.clone())
-        .map(|vars| Some(Stmt::Var(vars)));
+        let var_stmt = just(Token::Var)
+            .ignore_then(
+                variable_decl
+                    .separated_by(just(Token::Comma))
+                    .allow_trailing()
+                    .at_least(1)
+                    .collect::<Vec<_>>(),
+            )
+            .then_ignore(terminator.clone())
+            .map(|vars| Some(Stmt::Var(vars)));
+        // endregion
 
-    let block_content = statement_parser
-        .clone()
-        .repeated()
-        .collect::<Vec<Option<Stmt>>>()
-        .map(|stmts| stmts.into_iter().flatten().collect::<Vec<Stmt>>());
+        // region block
+        let block_content = statement
+            .clone()
+            .repeated()
+            .collect::<Vec<Option<Stmt>>>()
+            .map(|stmts| stmts.into_iter().flatten().collect::<Vec<Stmt>>());
 
-    let block_stmt = block_content
-        .clone()
-        .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
-        .map(|stmts| Some(Stmt::Block(stmts)));
+        let block = block_content
+            .clone()
+            .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+            .map(|stmts| Some(Stmt::Block(stmts)));
+        // endregion
 
-    let if_stmt = just(Token::If)
-        .ignore_then(
-            expr.clone()
-                .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-                .or(expr.clone()),
-        )
-        .then_ignore(just(Token::Then).or_not())
-        .then(statement_parser.clone())
-        .then_ignore(just(Token::Newline).repeated())
-        .then(
-            just(Token::Else)
-                .ignore_then(statement_parser.clone())
-                .or_not(),
-        )
-        .map(|((cond, then_opt), else_opt)| {
-            // Ensure the 'then' branch is a block.
-            let then_block = match then_opt.unwrap_or_else(|| Stmt::Block(Vec::new())) {
-                Stmt::Block(stmts) => Stmt::Block(stmts),
-                other_stmt => Stmt::Block(vec![other_stmt]),
-            };
+        // region if_stmt
+        let if_stmt = just(Token::If)
+            .ignore_then(
+                expr.clone()
+                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                    .or(expr.clone()),
+            )
+            .then_ignore(just(Token::Then).or_not())
+            .then(statement.clone())
+            .then_ignore(just(Token::Newline).repeated())
+            .then(
+                just(Token::Else)
+                    .ignore_then(statement.clone())
+                    .or_not(),
+            )
+            .map(|((cond, then_opt), else_opt)| {
+                // Ensure the 'then' branch is a block.
+                let then_block = match then_opt.unwrap_or_else(|| Stmt::Block(Vec::new())) {
+                    Stmt::Block(stmts) => Stmt::Block(stmts),
+                    other_stmt => Stmt::Block(vec![other_stmt]),
+                };
 
-            // Ensure the 'else' branch, if it exists, is a block.
-            let else_block = match else_opt {
-                None => None,                                          // No else branch
-                Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else {}
-                Some(Some(stmt)) => {
-                    let else_stmt = match stmt {
-                        Stmt::Block(stmts) => Stmt::Block(stmts),
-                        other_stmt => Stmt::Block(vec![other_stmt]),
-                    };
-                    Some(Box::new(else_stmt))
-                }
-            };
-            Some(Stmt::If(Box::new(cond), Box::new(then_block), else_block))
-        });
+                // Ensure the 'else' branch, if it exists, is a block.
+                let else_block = match else_opt {
+                    None => None,                                          // No else branch
+                    Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else {}
+                    Some(Some(stmt)) => {
+                        let else_stmt = match stmt {
+                            Stmt::Block(stmts) => Stmt::Block(stmts),
+                            other_stmt => Stmt::Block(vec![other_stmt]),
+                        };
+                        Some(Box::new(else_stmt))
+                    }
+                };
+                Some(Stmt::If(Box::new(cond), Box::new(then_block), else_block))
+            });
+        // endregion
 
-    statement_parser.define(choice((
-        expr_stmt.clone(),
-        var_stmt.clone(),
-        if_stmt,
-        block_stmt,
-    )));
+        choice((
+            expr_stmt.clone(),
+            var_stmt.clone(),
+            if_stmt,
+            block,
+        ))
+    });
     // endregion
 
-    // region Function Body Block
-    let func_body_block = statement_parser
+    // region function
+    let function_block = statement
         .clone()
         .repeated()
         .collect::<Vec<_>>()
         .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
-    // endregion
 
-    // region Function Definition
     let parameters = select! { Token::Identifier(s) => s.to_string() }
         .separated_by(just(Token::Comma))
         .allow_trailing()
@@ -169,7 +176,7 @@ where
     let function = just(Token::Function)
         .ignore_then(select! { Token::Identifier(s) => s.to_string() })
         .then(parameters)
-        .then(func_body_block)
+        .then(function_block)
         .map(|((name, args), body)| {
             TopLevel::Function(FuncDef {
                 name,
@@ -178,10 +185,10 @@ where
         });
     // endregion
 
-    // region Top Level Parser
+    // region top_level
     let top_level = choice((
         function.map(Some),
-        statement_parser.map(|stmt_opt| stmt_opt.map(TopLevel::Statement)),
+        statement.map(|stmt_opt| stmt_opt.map(TopLevel::Statement)),
     ))
     .recover_with(skip_then_retry_until(any().ignored(), end()));
 

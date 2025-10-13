@@ -6,7 +6,3 @@ else
     b = 3;
 }
 
-if isTrue == xxx
-    b = 1;
-else
-    b = 42;
