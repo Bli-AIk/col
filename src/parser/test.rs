@@ -139,4 +139,48 @@ mod tests {
     "#;
         parse_ok(src);
     }
+
+    #[test]
+    fn chained_assignment() {
+        let src = "a = b = 1;";
+        parse_ok(src);
+    }
+
+    #[test]
+    fn nested_ternary() {
+        let src = "1 ? 2 : 3 ? 4 : 5;";
+        parse_ok(src);
+    }
+
+    #[test]
+    fn nested_nested_ternary() {
+        let src = "1 ? 2 : 3 ? 4 : 5 ? 6 : 7;";
+        parse_ok(src);
+    }
+
+    #[test]
+    fn function_no_params_and_empty_block() {
+        let src = "function bar() { }\n";
+        let p = parse_ok(src);
+        assert!(p.body.iter().any(|t| matches!(t, TopLevel::Function(_))));
+    }
+
+    #[test]
+    fn for_with_compound_update() {
+        let src = "for (var i = 0; i < 3; i += 1) x += i;";
+        parse_ok(src);
+    }
+
+    #[test]
+    fn mixed_prefix_postfix_in_expressions() {
+        let src = "a = ++b + --c * d++;";
+        parse_ok(src);
+    }
+
+    #[test]
+    fn postfix_in_call_argument() {
+        let src = "foo(id++);";
+        parse_ok(src);
+    }
+
 }
