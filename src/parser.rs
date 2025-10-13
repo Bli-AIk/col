@@ -70,28 +70,38 @@ where
         .repeated()
         .at_least(1);
 
+    // `exprStmt → expression (";" | newline);`
+    // An expression statement is an optional expression followed by a terminator.
+    // Making the expression optional handles empty statements (i.e., just a newline or semicolon).
+    let expr_stmt = expr_parser().or_not().then_ignore(terminator.clone());
+
+    // `statement → exprStmt | varStmt | ...`
+    // The full statement parser will eventually be a `choice` between different statement types.
+    // For now, it only parses expression statements.
+    let statement = expr_stmt;
+
+    // A function body is a block, which is a sequence of statements delimited by braces.
+    let body = statement
+        .repeated()
+        .collect::<Vec<_>>()
+        .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
+        .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
+
     // Parser for a single function definition
     let func = just(Token::Function)
         .ignore_then(
             select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
         )
         .then(args)
-        .then(
-            // The function body is a list of expressions separated by terminators
-            expr_parser()
-                .separated_by(terminator)
-                // Allow empty lines at the start
-                .allow_leading()
-                // Allow empty lines at the end
-                .allow_trailing()
-                .collect()
-                .delimited_by(just(Token::LeftBrace), just(Token::RightBrace)),
-        )
+        .then(body)
         .map(|(((name, span), args), body)| ((name, span), Func { args, body }));
 
     // Parse multiple function definitions and collect them into a HashMap
+    let trailing_terminators = terminator.or_not().ignored();
+
     func.repeated()
         .collect::<Vec<_>>()
+        .then_ignore(trailing_terminators)
         .then_ignore(end())
         .validate(|fs, _span, emitter| {
             let mut funcs = HashMap::new();
