@@ -6,15 +6,15 @@ use expr::*;
 use std::collections::HashMap;
 
 /*
-program        → function* EOF ;
+program        -> function* EOF ;
 
-function       → "function" identifier "(" parameters? ")" block ;
-parameters     → identifier ( "," identifier )* ;
+function       -> "function" identifier "(" parameters? ")" block ;
+parameters     -> identifier ( "," identifier )* ;
 
 
-block          → "{" statement* "}" ;
+block          -> "{" statement* "}" ;
 
-statement      → exprStmt
+statement      -> exprStmt
                | varStmt
                | returnStmt
                | ifStmt
@@ -22,32 +22,33 @@ statement      → exprStmt
                | forStmt
                | block ;
 
-exprStmt       → expression (";" | newline);
+exprStmt       -> [expression] terminator ;
 
-varStmt        → "var" variableDecl ("," variableDecl)* (";" | newline);
-variableDecl   → IDENTIFIER ("=" expression)?;
+varStmt        -> "var" variableDecl ("," variableDecl)* terminator;
+variableDecl   -> IDENTIFIER ("=" expression)?;
 
+terminator     -> ( ";" | newline )+
 ---
 
-expression     → assignment ;
+expression     -> assignment ;
 
-assignment     → ternary ( "=" ternary )? ;
+assignment     -> ternary ( "=" ternary )? ;
 
-ternary        → logic_or ( "?" expression ":" ternary )? ;
+ternary        -> logic_or ( "?" expression ":" ternary )? ;
 
-logic_or       → logic_and ( "||" logic_and )* ;
-logic_xor      → logic_and ( "^^" logic_and )* ;
-logic_and      → bit_or ( "&&" bit_or )* ;
-bit_or         → bit_xor ( "|" bit_xor )* ;
-bit_xor        → bit_and ( "^" bit_and )* ;
-bit_and        → equality ( "&" equality )* ;
-equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-term           → factor ( ( "-" | "+" ) factor )* ;
-factor         → unary ( ( "/" | "*" | "%" ) unary )* ;
-unary          → ( "!" | "~" | "+" | "-" ) unary
+logic_or       -> logic_and ( "||" logic_and )* ;
+logic_xor      -> logic_and ( "^^" logic_and )* ;
+logic_and      -> bit_or ( "&&" bit_or )* ;
+bit_or         -> bit_xor ( "|" bit_xor )* ;
+bit_xor        -> bit_and ( "^" bit_and )* ;
+bit_and        -> equality ( "&" equality )* ;
+equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
+comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+term           -> factor ( ( "-" | "+" ) factor )* ;
+factor         -> unary ( ( "/" | "*" | "%" ) unary )* ;
+unary          -> ( "!" | "~" | "+" | "-" ) unary
                | primary ;
-primary & atom → number | string | "true" | "false" | "null"
+primary & atom -> number | string | "true" | "false" | "null"
                | identifier
                | "(" expression ")" ;
 */
@@ -58,24 +59,17 @@ pub(crate) fn funcs_parser<'tokens, 'src: 'tokens, I>()
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
-    // Parser for a function's argument list, e.g., (a, b, c)
-    let parameters = select! { Token::Identifier(s) => s.to_string() }
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect()
-        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
-
     // A statement terminator is one or more semicolons or newlines
     let terminator = choice((just(Token::Semicolon), just(Token::Newline)))
         .repeated()
         .at_least(1);
 
-    // `exprStmt → expression (";" | newline);`
+    // `exprStmt -> expression (";" | newline);`
     // An expression statement is an optional expression followed by a terminator.
     // Making the expression optional handles empty statements (i.e., just a newline or semicolon).
     let expr_stmt = expr_parser().or_not().then_ignore(terminator.clone());
 
-    // `statement → exprStmt | varStmt | ...`
+    // `statement -> exprStmt | varStmt | ...`
     // The full statement parser will eventually be a `choice` between different statement types.
     // For now, it only parses expression statements.
     let statement = expr_stmt;
@@ -86,9 +80,16 @@ where
         .collect::<Vec<_>>()
         .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
+    
+    // Parser for a function's argument list, e.g., (a, b, c)
+    let parameters = select! { Token::Identifier(s) => s.to_string() }
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect()
+        .delimited_by(just(Token::LeftParen), just(Token::RightParen));
 
     // Parser for a single function definition
-    let func = just(Token::Function)
+    let function = just(Token::Function)
         .ignore_then(
             select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
         )
@@ -99,7 +100,7 @@ where
     // Parse multiple function definitions and collect them into a HashMap
     let trailing_terminators = terminator.or_not().ignored();
 
-    func.repeated()
+    function.repeated()
         .collect::<Vec<_>>()
         .then_ignore(trailing_terminators)
         .then_ignore(end())
