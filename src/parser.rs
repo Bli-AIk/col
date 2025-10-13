@@ -1,12 +1,14 @@
 mod expr;
 
+use crate::parser::expr::{Expr, Func, FuncDef, Program, Stmt, TopLevel};
 use crate::token::*;
 use chumsky::{input::ValueInput, prelude::*, recursive::Recursive};
-use expr::*;
-use std::collections::HashMap;
 
 /*
-program        -> function* EOF ;
+program        -> top_level* EOF ;
+
+top_level      -> statement
+               | function ;
 
 function       -> "function" identifier "(" parameters? ")" block ;
 parameters     -> identifier ( "," identifier )* ;
@@ -55,41 +57,42 @@ primary & atom -> number | string | "true" | "false" | "null"
                | "(" expression ")" ;
 */
 
-/// The top-level parser for a program, parsing a collection of function definitions.
-pub(crate) fn funcs_parser<'tokens, 'src: 'tokens, I>()
--> impl Parser<'tokens, I, HashMap<String, Func>, extra::Err<Rich<'tokens, Token<'src>>>>
+/// The top-level parser for a program, parsing a collection of statements and function definitions.
+pub(crate) fn program_parser<'tokens, 'src: 'tokens, I>()
+-> impl Parser<'tokens, I, Program, extra::Err<Rich<'tokens, Token<'src>>>>
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
     // region Terminator
     let terminator = choice((just(Token::Semicolon), just(Token::Newline)))
         .repeated()
-        .at_least(1);
+        .at_least(1)
+        .ignored();
     // endregion
 
-    // region ExprStmt
-    let expr_stmt = expr_parser()
+    // region Expressions and Statements (recursively defined)
+    let mut statement_parser = Recursive::declare();
+    let expr = expr_parser();
+
+    let expr_stmt = expr
+        .clone()
         .or_not()
         .then_ignore(terminator.clone())
         .map(|expr_opt| expr_opt.map(Stmt::Expr));
-    // endregion
 
-    // region VarStmt
     let variable_decl = select! { Token::Identifier(s) => s.to_string() }
-        .then(just(Token::Equal).ignore_then(expr_parser()).or_not());
+        .then(just(Token::Equal).ignore_then(expr.clone()).or_not());
 
     let var_stmt = just(Token::Var)
         .ignore_then(
             variable_decl
                 .separated_by(just(Token::Comma))
+                .allow_trailing()
                 .at_least(1)
                 .collect::<Vec<_>>(),
         )
         .then_ignore(terminator.clone())
         .map(|vars| Some(Stmt::Var(vars)));
-    // endregion
-
-    let mut statement_parser = Recursive::declare();
 
     let block_content = statement_parser
         .clone()
@@ -104,10 +107,15 @@ where
 
     let if_stmt = just(Token::If)
         .ignore_then(
-            expr_parser().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+            expr.clone()
+                .delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         )
         .then(statement_parser.clone())
-        .then(just(Token::Else).ignore_then(statement_parser.clone()).or_not())
+        .then(
+            just(Token::Else)
+                .ignore_then(statement_parser.clone())
+                .or_not(),
+        )
         .map(|((cond, then_opt), else_opt)| {
             // Ensure the 'then' branch is a block.
             let then_block = match then_opt.unwrap_or_else(|| Stmt::Block(Vec::new())) {
@@ -117,7 +125,7 @@ where
 
             // Ensure the 'else' branch, if it exists, is a block.
             let else_block = match else_opt {
-                None => None, // No else branch
+                None => None,                                          // No else branch
                 Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else {}
                 Some(Some(stmt)) => {
                     let else_stmt = match stmt {
@@ -136,55 +144,54 @@ where
         if_stmt,
         block_stmt,
     )));
+    // endregion
 
-    // region Block
+    // region Function Body Block
     let func_body_block = statement_parser
+        .clone()
         .repeated()
         .collect::<Vec<_>>()
         .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
     // endregion
 
-    // region Parameters
+    // region Function Definition
     let parameters = select! { Token::Identifier(s) => s.to_string() }
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect()
         .delimited_by(just(Token::LeftParen), just(Token::RightParen));
-    // endregion
 
-    // region Function
     let function = just(Token::Function)
-        .ignore_then(
-            select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
-        )
+        .ignore_then(select! { Token::Identifier(s) => s.to_string() })
         .then(parameters)
         .then(func_body_block)
-        .map(|(((name, span), args), body)| ((name, span), Func { args, body }));
+        .map(|((name, args), body)| {
+            TopLevel::Function(FuncDef {
+                name,
+                func: Func { args, body },
+            })
+        });
     // endregion
 
-    // region Program
-    // Parse multiple function definitions and collect them into a HashMap
-    let trailing_terminators = terminator.or_not().ignored();
+    // region Top Level Parser
+    let top_level = choice((
+        function.map(Some),
+        statement_parser.map(|stmt_opt| stmt_opt.map(TopLevel::Statement)),
+    ))
+    .recover_with(skip_then_retry_until(any().ignored(), end()));
 
-    function
+    let program = top_level
         .repeated()
         .collect::<Vec<_>>()
-        .then_ignore(trailing_terminators)
-        .then_ignore(end())
-        .validate(|fs, _span, emitter| {
-            let mut funcs = HashMap::new();
-            for ((name, name_span), f) in fs {
-                if funcs.insert(name.clone(), f).is_some() {
-                    emitter.emit(Rich::custom(
-                        name_span,
-                        format!("Function '{}' already exists", name),
-                    ));
-                }
-            }
-            funcs
+        .map(|top_levels| {
+            let body = top_levels.into_iter().flatten().collect();
+            Program { body }
         })
+        .then_ignore(end());
     // endregion
+
+    program
 }
 
 /// Parses a single expression, handling operator precedence, primitives, and function calls.

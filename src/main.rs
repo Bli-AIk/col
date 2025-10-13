@@ -12,6 +12,8 @@ mod token;
 mod utils;
 
 fn main() {
+    // Set to true for pretty-printing the AST
+    let is_pretty_print_ast = false;
     let path = "Sample.gml";
     let content = match fs::read_to_string(path) {
         Ok(data) => data,
@@ -42,9 +44,13 @@ fn main() {
         Stream::from_iter(token_iter).map((0..content.len()).into(), |(t, s): (_, _)| (t, s));
 
     println!();
-    match funcs_parser().parse(token_stream).into_result() {
-        Ok(expr) => {
-            let debug_str = format!("{:?}", expr);
+    match program_parser().parse(token_stream).into_result() {
+        Ok(program) => {
+            let debug_str = if is_pretty_print_ast {
+                format!("{:#?}", program)
+            } else {
+                format!("{:?}", program)
+            };
             println!(
                 "{} {}",
                 "Parsed:".green(),

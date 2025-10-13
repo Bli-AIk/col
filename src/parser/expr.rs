@@ -1,4 +1,21 @@
 #[derive(Debug, Clone)]
+pub struct Program {
+    pub body: Vec<TopLevel>,
+}
+
+#[derive(Debug, Clone)]
+pub enum TopLevel {
+    Statement(Stmt),
+    Function(FuncDef),
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncDef {
+    pub name: String,
+    pub func: Func,
+}
+
+#[derive(Debug, Clone)]
 pub struct Func {
     pub args: Vec<String>,
     pub body: Vec<Stmt>,
@@ -11,7 +28,6 @@ pub enum Stmt {
     If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
     Block(Vec<Stmt>),
 }
-
 
 #[derive(Debug, Clone)]
 pub enum Expr {
