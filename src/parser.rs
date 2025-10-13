@@ -88,11 +88,12 @@ equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
 comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 term           -> factor ( ( "-" | "+" ) factor )* ;
 factor         -> postfix ( ( "/" | "*" | "%" ) postfix )* ;
-postfix        -> unary ( "++" | "--" )? ;
-unary          -> ( "!" | "~" | "+" | "-" | "++" | "--" ) unary
+postfix        -> identifier ( "++" | "--" ) | unary ;
+unary          -> ( "!" | "~" | "+" | "-" ) unary
+               | ( "++" | "--" ) identifier
                | primary ;
 primary & atom -> number | string | "true" | "false" | "null"
-               | identifier ( "(" ( expression ( "," expression )* )? ")" )?
+               | identifier ( "(" ( expression ( "," expression )* )? ")" | ( "++" | "--" ) )?
                | "(" expression ")" ;
 */
 
@@ -425,12 +426,13 @@ where
                 just(Token::Minus)
                     .ignore_then(unary.clone())
                     .map(|e| Expr::Negative(Box::new(e))),
+                // Increment/decrement only work on identifiers
                 just(Token::Increment)
-                    .ignore_then(unary.clone())
-                    .map(|e| Expr::PreIncrement(Box::new(e))),
+                    .ignore_then(select! { Token::Identifier(s) => s.to_string() })
+                    .map(|id| Expr::PreIncrement(Box::new(Expr::Identifier(id)))),
                 just(Token::Decrement)
-                    .ignore_then(unary.clone())
-                    .map(|e| Expr::PreDecrement(Box::new(e))),
+                    .ignore_then(select! { Token::Identifier(s) => s.to_string() })
+                    .map(|id| Expr::PreDecrement(Box::new(Expr::Identifier(id)))),
                 atom, // Use atom here instead of the old 'primary'
             ))
         })
@@ -438,23 +440,20 @@ where
         // endregion
 
         // region Postfix operators (increment/decrement)
-        let postfix = unary
-            .clone()
-            .then(
-                choice((
-                    just(Token::Increment).to(Expr::PostIncrement as fn(_) -> _),
-                    just(Token::Decrement).to(Expr::PostDecrement as fn(_) -> _),
-                ))
-                .or_not(),
-            )
-            .map(|(expr, op_opt)| {
-                if let Some(op) = op_opt {
-                    op(Box::new(expr))
-                } else {
-                    expr
-                }
-            })
-            .boxed();
+        let postfix = choice((
+            // Postfix increment/decrement only work on identifiers
+            select! { Token::Identifier(s) => s.to_string() }
+                .then(
+                    choice((
+                        just(Token::Increment).to(Expr::PostIncrement as fn(_) -> _),
+                        just(Token::Decrement).to(Expr::PostDecrement as fn(_) -> _),
+                    ))
+                )
+                .map(|(id, op)| op(Box::new(Expr::Identifier(id)))),
+            // All other unary expressions (without postfix operators)
+            unary.clone(),
+        ))
+        .boxed();
         // endregion
 
         // region Multiplication, division, modulo

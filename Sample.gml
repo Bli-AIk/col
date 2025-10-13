@@ -1,76 +1,67 @@
-// With repeat the given statement is repeated the number of times indicated by the rounded value of the expression.
+a = 1;
+c = +a;
+c = -a;
+c = ++a;
+c = --a;
 
-/*
-repeat (<expression>)
-{
-    <statement>;
-    <statement>;
-    ...
-}
-*/
-repeat (5)
-{
-    a++;
-    ++b;
+c = +-a;
+c = -+a;
+//c = +++a;
+//c = ---a;
+c = -++a;
+//c = ++-a;
 
-    a++
-    ++b
+c = +-+-a;
+c = -+-+a;
+//c = +--+a;
+//c = -++-a;
+//c = ++--a;
+//c = --++a;
 
-    if (a == 1)
-        break;
-    else
-        continue;
+//c = +++--a;
+//c = --+++a;
+c = +-+-+-a;
+c = -+-+-+a;
+//c = +--++-a;
+//c = -++--+a;
 
-    c--;
-    --c;
+//c = ++++++a;
+//c = ------a;
+c = +-+-+-+-a;
+c = -+-+-+-+-a;
 
-    c--
-    --c
-}
+//b = ---a;
 
-while(a != 1)
-{
-    a = a + 1;
+c = +1;
+c = -1;
+//c = ++1;
+//c = --1;
 
+c = +-1;
+c = -+1;
+//c = +++1;
+//c = ---1;
+//c = -- -1;
+//c = -++1;
+//c = ++-1;
 
-    if (b == 1)
-        break;
-    else
-        continue;
-}
+c = +-+-1;
+c = -+-+1;
+//c = +--+1;
+//c = -++-1;
+//c = ++--1;
+//c = --++1;
 
+//c = +++--1;
+//c = --+++1;
+c = +-+-+-1;
+c = -+-+-+1;
+//c = +--++-1;
+//c = -++--+1;
 
-// A do statement is another way of iterating over one or more statements multiple times, and is really a "do... until" statement as you cannot have one without the other since you are telling GameMaker to do something until a specific expression returns true.
-/*
-do
-{
-    <statement>;
-    <statement>;
-    ...
-}
-until (<expression>);
-*/
+//c = ++++++1;
+//c = ------1;
+c = +-+-+-+-1;
+c = -+-+-+-+-1;
 
-do
-{
-    a = a + 1;
-
-    if (b == 1)
-        break;
-    else
-        continue;
-}
-until (a != 1);
-
-
-for (var i = 0; i < 10; i += 1)
-{
-    i++;
-
-    if (b == 1)
-        break;
-    else
-        continue;
-}
-
-
+show_message(c);
