@@ -1,4 +1,6 @@
-mod expr;
+pub mod expr;
+#[cfg(test)]
+mod test;
 
 use crate::parser::expr::{Expr, Func, FuncDef, Program, Stmt, TopLevel};
 use crate::token::*;
