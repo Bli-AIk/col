@@ -59,36 +59,43 @@ pub(crate) fn funcs_parser<'tokens, 'src: 'tokens, I>()
 where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
-    // A statement terminator is one or more semicolons or newlines
+    // region Terminator
     let terminator = choice((just(Token::Semicolon), just(Token::Newline)))
         .repeated()
         .at_least(1);
+    // endregion
 
-    // `exprStmt -> expression (";" | newline);`
-    // An expression statement is an optional expression followed by a terminator.
-    // Making the expression optional handles empty statements (i.e., just a newline or semicolon).
+    // region ExprStmt
     let expr_stmt = expr_parser().or_not().then_ignore(terminator.clone());
+    // endregion
 
-    // `statement -> exprStmt | varStmt | ...`
-    // The full statement parser will eventually be a `choice` between different statement types.
-    // For now, it only parses expression statements.
-    let statement = expr_stmt;
+    // region Statement
+    let statement = choice((
+        expr_stmt,
+        // var_stmt,
+        // if_stmt,
+        // while_stmt,
+    ));
 
-    // A function body is a block, which is a sequence of statements delimited by braces.
+    // endregion
+
+    // region Block
     let block = statement
         .repeated()
         .collect::<Vec<_>>()
         .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
-    
-    // Parser for a function's argument list, e.g., (a, b, c)
+    // endregion
+
+    // region Parameters
     let parameters = select! { Token::Identifier(s) => s.to_string() }
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect()
         .delimited_by(just(Token::LeftParen), just(Token::RightParen));
+    // endregion
 
-    // Parser for a single function definition
+    // region Function
     let function = just(Token::Function)
         .ignore_then(
             select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
@@ -96,11 +103,14 @@ where
         .then(parameters)
         .then(block)
         .map(|(((name, span), args), body)| ((name, span), Func { args, body }));
+    // endregion
 
+    // region Program
     // Parse multiple function definitions and collect them into a HashMap
     let trailing_terminators = terminator.or_not().ignored();
 
-    function.repeated()
+    function
+        .repeated()
         .collect::<Vec<_>>()
         .then_ignore(trailing_terminators)
         .then_ignore(end())
@@ -116,6 +126,7 @@ where
             }
             funcs
         })
+    // endregion
 }
 
 /// Parses a single expression, handling operator precedence, primitives, and function calls.
@@ -354,7 +365,6 @@ where
                 }
             })
             .boxed()
-
         // endregion
     })
 }
