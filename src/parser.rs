@@ -1,7 +1,7 @@
 mod expr;
 
 use crate::token::*;
-use chumsky::{input::ValueInput, prelude::*};
+use chumsky::{input::ValueInput, prelude::*, recursive::Recursive};
 use expr::*;
 use std::collections::HashMap;
 
@@ -16,8 +16,8 @@ block          -> "{" statement* "}" ;
 
 statement      -> exprStmt
                | varStmt
-               | returnStmt
                | ifStmt
+               | returnStmt
                | whileStmt
                | forStmt
                | block ;
@@ -26,6 +26,8 @@ exprStmt       -> [expression] terminator ;
 
 varStmt        -> "var" variableDecl ("," variableDecl)* terminator;
 variableDecl   -> IDENTIFIER ("=" expression)?;
+
+ifStmt         -> "if" "(" expression ")" statement ("else" statement)? ;
 
 terminator     -> ( ";" | newline )+
 ---
@@ -87,21 +89,47 @@ where
         .map(|vars| Some(Stmt::Var(vars)));
     // endregion
 
-    // region Statement
-    let statement = choice((
-        expr_stmt,
-        var_stmt,
-        // if_stmt,
-        // while_stmt,
-    ));
+    let mut statement_parser = Recursive::declare();
 
-    // endregion
+    let block_content = statement_parser
+        .clone()
+        .repeated()
+        .collect::<Vec<Option<Stmt>>>()
+        .map(|stmts| stmts.into_iter().flatten().collect::<Vec<Stmt>>());
+
+    let block_stmt = block_content
+        .clone()
+        .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+        .map(|stmts| Some(Stmt::Block(stmts)));
+
+    let if_stmt = just(Token::If)
+        .ignore_then(
+            expr_parser().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
+        )
+        .then(statement_parser.clone())
+        .then(just(Token::Else).ignore_then(statement_parser.clone()).or_not())
+        .map(|((cond, then_opt), else_opt)| {
+            let then_stmt = then_opt.unwrap_or_else(|| Stmt::Block(Vec::new()));
+            let else_stmt = match else_opt {
+                None => None, // No else branch
+                Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else with empty statement
+                Some(Some(stmt)) => Some(Box::new(stmt)), // else with a statement
+            };
+            Some(Stmt::If(Box::new(cond), Box::new(then_stmt), else_stmt))
+        });
+
+    statement_parser.define(choice((
+        expr_stmt.clone(),
+        var_stmt.clone(),
+        if_stmt,
+        block_stmt,
+    )));
 
     // region Block
-    let block = statement
+    let func_body_block = statement_parser
         .repeated()
         .collect::<Vec<_>>()
-        .map(|stmts| stmts.into_iter().flatten().collect())
+        .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
     // endregion
 
@@ -119,7 +147,7 @@ where
             select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
         )
         .then(parameters)
-        .then(block)
+        .then(func_body_block)
         .map(|(((name, span), args), body)| ((name, span), Func { args, body }));
     // endregion
 

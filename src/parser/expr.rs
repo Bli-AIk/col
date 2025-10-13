@@ -8,6 +8,8 @@ pub struct Func {
 pub enum Stmt {
     Expr(Expr),
     Var(Vec<(String, Option<Expr>)>),
+    If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
+    Block(Vec<Stmt>),
 }
 
 
