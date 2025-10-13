@@ -59,7 +59,7 @@ where
     I: ValueInput<'tokens, Token = Token<'src>, Span = SimpleSpan>,
 {
     // Parser for a function's argument list, e.g., (a, b, c)
-    let args = select! { Token::Identifier(s) => s.to_string() }
+    let parameters = select! { Token::Identifier(s) => s.to_string() }
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect()
@@ -81,7 +81,7 @@ where
     let statement = expr_stmt;
 
     // A function body is a block, which is a sequence of statements delimited by braces.
-    let body = statement
+    let block = statement
         .repeated()
         .collect::<Vec<_>>()
         .map(|stmts| stmts.into_iter().flatten().collect()) // Filter out empty statements
@@ -92,8 +92,8 @@ where
         .ignore_then(
             select! { Token::Identifier(s) => s.to_string() }.map_with(|name, e| (name, e.span())),
         )
-        .then(args)
-        .then(body)
+        .then(parameters)
+        .then(block)
         .map(|(((name, span), args), body)| ((name, span), Func { args, body }));
 
     // Parse multiple function definitions and collect them into a HashMap
