@@ -33,7 +33,12 @@ pub enum Stmt {
     Repeat(Box<Expr>, Box<Stmt>),
     While(Box<Expr>, Box<Stmt>),
     DoUntil(Box<Stmt>, Box<Expr>),
-    For(Option<Box<Stmt>>, Option<Box<Expr>>, Option<Box<Stmt>>, Box<Stmt>),
+    For(
+        Option<Box<Stmt>>,
+        Option<Box<Expr>>,
+        Option<Box<Stmt>>,
+        Box<Stmt>,
+    ),
 }
 
 #[derive(Debug, Clone)]

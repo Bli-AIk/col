@@ -482,7 +482,8 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let input = "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
+        let input =
+            "= += -= *= /= %= == != < <= > >= ?? ??= && || ^^ | & ^ << >> ++ -- + - * / % ! ~";
         let expected = vec![
             Token::Equal,
             Token::PlusEqual,
