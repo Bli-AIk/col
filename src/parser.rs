@@ -6,10 +6,21 @@ use expr::*;
 use std::collections::HashMap;
 
 /*
-program        → statement* EOF ;
+program        → function* EOF ;
+
+function       → "function" identifier "(" parameters? ")" block ;
+parameters     → identifier ( "," identifier )* ;
+
+
+block          → "{" statement* "}" ;
 
 statement      → exprStmt
-               | varStmt ;
+               | varStmt
+               | returnStmt
+               | ifStmt
+               | whileStmt
+               | forStmt
+               | block ;
 
 exprStmt       → expression (";" | newline);
 
