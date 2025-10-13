@@ -288,7 +288,11 @@ where
             .then_ignore(just(Token::Semicolon))
             .then(expr.clone().or_not().map(|e| e.map(Box::new)))
             .then_ignore(just(Token::Semicolon))
-            .then(expr.clone().or_not().map(|e| e.map(|ex| Box::new(Stmt::Expr(ex)))))
+            .then(
+                expr.clone()
+                    .or_not()
+                    .map(|e| e.map(|ex| Box::new(Stmt::Expr(ex)))),
+            )
             .then_ignore(just(Token::RightParen))
             .then_ignore(just(Token::Newline).repeated())
             .then(statement.clone())
@@ -599,7 +603,7 @@ where
                     }
                 })
         });
-        
+
         let ternary = ternary.boxed();
         // endregion
 
@@ -627,7 +631,7 @@ where
                     }
                 })
         });
-        
+
         assignment.boxed()
         // endregion
     })

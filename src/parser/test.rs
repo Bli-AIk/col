@@ -91,7 +91,10 @@ mod tests {
                 assert!(matches!(**cond, Expr::Number(0.0)));
                 assert!(matches!(**then_stmt, Stmt::Expr(Expr::Equal(_, _))));
                 assert!(else_stmt.is_some());
-                assert!(matches!(**else_stmt.as_ref().unwrap(), Stmt::Expr(Expr::Equal(_, _))));
+                assert!(matches!(
+                    **else_stmt.as_ref().unwrap(),
+                    Stmt::Expr(Expr::Equal(_, _))
+                ));
             }
             _ => panic!("Expected if statement"),
         }
@@ -129,7 +132,10 @@ mod tests {
         let src = "return\n break; continue\n";
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 3);
-        assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::Return(None))));
+        assert!(matches!(
+            &p.body[0],
+            TopLevel::Statement(Stmt::Return(None))
+        ));
         assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::Break)));
         assert!(matches!(&p.body[2], TopLevel::Statement(Stmt::Continue)));
     }
@@ -144,10 +150,16 @@ mod tests {
     "#;
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 4);
-        assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::Repeat(_, _))));
+        assert!(matches!(
+            &p.body[0],
+            TopLevel::Statement(Stmt::Repeat(_, _))
+        ));
         assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::While(_, _))));
         assert!(matches!(&p.body[2], TopLevel::Statement(Stmt::While(_, _))));
-        assert!(matches!(&p.body[3], TopLevel::Statement(Stmt::DoUntil(_, _))));
+        assert!(matches!(
+            &p.body[3],
+            TopLevel::Statement(Stmt::DoUntil(_, _))
+        ));
     }
 
     #[test]
@@ -168,7 +180,10 @@ mod tests {
                 assert!(cond.is_some());
                 assert!(matches!(**cond.as_ref().unwrap(), Expr::Less(_, _)));
                 assert!(post.is_some());
-                assert!(matches!(**post.as_ref().unwrap(), Stmt::Expr(Expr::PostIncrement(_))));
+                assert!(matches!(
+                    **post.as_ref().unwrap(),
+                    Stmt::Expr(Expr::PostIncrement(_))
+                ));
                 assert!(matches!(**body, Stmt::Expr(Expr::PlusEqual(_, _))));
             }
             _ => panic!("Expected for statement"),
@@ -178,7 +193,10 @@ mod tests {
         match &p.body[1] {
             TopLevel::Statement(Stmt::For(init, cond, post, body)) => {
                 assert!(init.is_some());
-                assert!(matches!(**init.as_ref().unwrap(), Stmt::Expr(Expr::Equal(_, _))));
+                assert!(matches!(
+                    **init.as_ref().unwrap(),
+                    Stmt::Expr(Expr::Equal(_, _))
+                ));
                 assert!(cond.is_some());
                 assert!(matches!(**cond.as_ref().unwrap(), Expr::Less(_, _)));
                 assert!(post.is_none());
@@ -207,12 +225,30 @@ mod tests {
     "#;
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 6);
-        assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::Expr(Expr::Equal(_, _)))));
-        assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::Expr(Expr::PlusEqual(_, _)))));
-        assert!(matches!(&p.body[2], TopLevel::Statement(Stmt::Expr(Expr::MinusEqual(_, _)))));
-        assert!(matches!(&p.body[3], TopLevel::Statement(Stmt::Expr(Expr::StarEqual(_, _)))));
-        assert!(matches!(&p.body[4], TopLevel::Statement(Stmt::Expr(Expr::SlashEqual(_, _)))));
-        assert!(matches!(&p.body[5], TopLevel::Statement(Stmt::Expr(Expr::PercentEqual(_, _)))));
+        assert!(matches!(
+            &p.body[0],
+            TopLevel::Statement(Stmt::Expr(Expr::Equal(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[1],
+            TopLevel::Statement(Stmt::Expr(Expr::PlusEqual(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[2],
+            TopLevel::Statement(Stmt::Expr(Expr::MinusEqual(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[3],
+            TopLevel::Statement(Stmt::Expr(Expr::StarEqual(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[4],
+            TopLevel::Statement(Stmt::Expr(Expr::SlashEqual(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[5],
+            TopLevel::Statement(Stmt::Expr(Expr::PercentEqual(_, _)))
+        ));
     }
 
     #[test]
@@ -226,11 +262,26 @@ mod tests {
     "#;
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 5);
-        assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::Expr(Expr::Ternary(_, _, _)))));
-        assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::Expr(Expr::Or(_, _)))));
-        assert!(matches!(&p.body[2], TopLevel::Statement(Stmt::Expr(Expr::BitOr(_, _)))));
-        assert!(matches!(&p.body[3], TopLevel::Statement(Stmt::Expr(Expr::NotEqual(_, _)))));
-        assert!(matches!(&p.body[4], TopLevel::Statement(Stmt::Expr(Expr::Subtraction(_, _)))));
+        assert!(matches!(
+            &p.body[0],
+            TopLevel::Statement(Stmt::Expr(Expr::Ternary(_, _, _)))
+        ));
+        assert!(matches!(
+            &p.body[1],
+            TopLevel::Statement(Stmt::Expr(Expr::Or(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[2],
+            TopLevel::Statement(Stmt::Expr(Expr::BitOr(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[3],
+            TopLevel::Statement(Stmt::Expr(Expr::NotEqual(_, _)))
+        ));
+        assert!(matches!(
+            &p.body[4],
+            TopLevel::Statement(Stmt::Expr(Expr::Subtraction(_, _)))
+        ));
     }
 
     #[test]
@@ -241,11 +292,26 @@ mod tests {
     "#;
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 5);
-        assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::Expr(Expr::Not(_)))));
-        assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::Expr(Expr::PreIncrement(_)))));
-        assert!(matches!(&p.body[2], TopLevel::Statement(Stmt::Expr(Expr::PreDecrement(_)))));
-        assert!(matches!(&p.body[3], TopLevel::Statement(Stmt::Expr(Expr::PostIncrement(_)))));
-        assert!(matches!(&p.body[4], TopLevel::Statement(Stmt::Expr(Expr::PostDecrement(_)))));
+        assert!(matches!(
+            &p.body[0],
+            TopLevel::Statement(Stmt::Expr(Expr::Not(_)))
+        ));
+        assert!(matches!(
+            &p.body[1],
+            TopLevel::Statement(Stmt::Expr(Expr::PreIncrement(_)))
+        ));
+        assert!(matches!(
+            &p.body[2],
+            TopLevel::Statement(Stmt::Expr(Expr::PreDecrement(_)))
+        ));
+        assert!(matches!(
+            &p.body[3],
+            TopLevel::Statement(Stmt::Expr(Expr::PostIncrement(_)))
+        ));
+        assert!(matches!(
+            &p.body[4],
+            TopLevel::Statement(Stmt::Expr(Expr::PostDecrement(_)))
+        ));
     }
 
     #[test]
@@ -330,7 +396,10 @@ mod tests {
         match &p.body[0] {
             TopLevel::Statement(Stmt::For(_, _, post, _)) => {
                 assert!(post.is_some());
-                assert!(matches!(**post.as_ref().unwrap(), Stmt::Expr(Expr::PlusEqual(_, _))));
+                assert!(matches!(
+                    **post.as_ref().unwrap(),
+                    Stmt::Expr(Expr::PlusEqual(_, _))
+                ));
             }
             _ => panic!("Expected for statement"),
         }
@@ -375,7 +444,11 @@ mod tests {
         let stream =
             Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
         let res = program_parser().parse(stream).into_result();
-        assert!(res.is_err(), "Expected parse to fail but it succeeded: {}", src);
+        assert!(
+            res.is_err(),
+            "Expected parse to fail but it succeeded: {}",
+            src
+        );
     }
 
     #[test]
@@ -473,6 +546,4 @@ mod tests {
         let p = parse_ok(src);
         assert_eq!(p.body.len(), 5);
     }
-
-
 }
