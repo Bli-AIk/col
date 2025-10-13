@@ -113,47 +113,66 @@ where
         // endregion
 
         // region if_stmt
-        let if_stmt = just(Token::If)
-            .ignore_then(
-                expr.clone()
-                    .delimited_by(just(Token::LeftParen), just(Token::RightParen))
-                    .or(expr.clone()),
-            )
-            .then_ignore(just(Token::Then).or_not())
-            .then(statement.clone())
-            .then_ignore(just(Token::Newline).repeated())
-            .then(
-                just(Token::Else)
-                    .ignore_then(statement.clone())
-                    .or_not(),
-            )
-            .map(|((cond, then_opt), else_opt)| {
-                // Ensure the 'then' branch is a block.
-                let then_block = match then_opt.unwrap_or_else(|| Stmt::Block(Vec::new())) {
-                    Stmt::Block(stmts) => Stmt::Block(stmts),
-                    other_stmt => Stmt::Block(vec![other_stmt]),
-                };
+        let if_stmt = recursive(|if_stmt| {
+            let block = statement
+                .clone()
+                .repeated()
+                .collect::<Vec<Option<Stmt>>>()
+                .map(|stmts| stmts.into_iter().flatten().collect::<Vec<Stmt>>())
+                .delimited_by(just(Token::LeftBrace), just(Token::RightBrace))
+                .map(Stmt::Block);
 
-                // Ensure the 'else' branch, if it exists, is a block.
-                let else_block = match else_opt {
-                    None => None,                                          // No else branch
-                    Some(None) => Some(Box::new(Stmt::Block(Vec::new()))), // else {}
-                    Some(Some(stmt)) => {
-                        let else_stmt = match stmt {
-                            Stmt::Block(stmts) => Stmt::Block(stmts),
-                            other_stmt => Stmt::Block(vec![other_stmt]),
-                        };
-                        Some(Box::new(else_stmt))
-                    }
-                };
-                Some(Stmt::If(Box::new(cond), Box::new(then_block), else_block))
-            });
+            let variable_decl = select! { Token::Identifier(s) => s.to_string() }
+                .then(just(Token::Equal).ignore_then(expr.clone()).or_not());
+            let var_stmt_no_term = just(Token::Var)
+                .ignore_then(
+                    variable_decl
+                        .separated_by(just(Token::Comma))
+                        .allow_trailing()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
+                )
+                .map(Stmt::Var);
+
+            let body = choice((
+                block,
+                if_stmt,
+                var_stmt_no_term,
+                expr.clone().map(Stmt::Expr),
+            ));
+
+            just(Token::If)
+                .ignore_then(
+                    expr.clone()
+                        .delimited_by(just(Token::LeftParen), just(Token::RightParen))
+                        .or(expr.clone()),
+                )
+                .then_ignore(just(Token::Then).or_not())
+                .then_ignore(just(Token::Newline).repeated())
+                .then(body.clone())
+                .then_ignore(just(Token::Semicolon).or_not())
+                .then_ignore(just(Token::Newline).repeated())
+                .then(
+                    just(Token::Else)
+                        .ignore_then(just(Token::Newline).repeated())
+                        .ignore_then(body)
+                        .then_ignore(just(Token::Semicolon).or_not())
+                        .or_not(),
+                )
+                .map(|((cond, then_stmt), else_stmt)| {
+                    Stmt::If(
+                        Box::new(cond),
+                        Box::new(then_stmt),
+                        else_stmt.map(Box::new),
+                    )
+                })
+        });
         // endregion
 
         choice((
             expr_stmt.clone(),
             var_stmt.clone(),
-            if_stmt,
+            if_stmt.map(Some),
             block,
         ))
     });
