@@ -183,4 +183,107 @@ mod tests {
         parse_ok(src);
     }
 
+    fn parse_err(src: &str) {
+        let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
+            Ok(tok) => (tok, span.into()),
+            Err(_) => (Token::Error, span.into()),
+        });
+        let stream =
+            Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
+        let res = program_parser().parse(stream).into_result();
+        assert!(res.is_err(), "Expected parse to fail but it succeeded: {}", src);
+    }
+
+    #[test]
+    fn fail_prefix_on_literal_and_bad_unary_sequences() {
+        parse_err("c = ++1;");
+        parse_err("c = --1;");
+
+        parse_err("c = +++a;");
+        parse_err("c = ---a;");
+        parse_err("c = ++-a;");
+
+        parse_err("foo()++;");
+
+        parse_err("a = ;");
+        parse_err("var a = ;");
+
+        parse_err("1++;");
+
+        parse_err("a = ? : 1;");
+    }
+
+    #[test]
+    fn long_program_should_fail_due_to_invalid_unary_inside() {
+        let src = r#"
+            function big(x, y) {
+                var i = 0, acc = 0;
+                for (i = 0; i < 10; i++) {
+                    if (i % 2 == 0) acc += i;
+                    else acc += -+i;
+                }
+                // 下面这一行含有对字面量的 ++（非法）
+                acc += ++1;
+                return acc;
+            }
+            var r = big(1, 2);
+        "#;
+        parse_err(src);
+    }
+
+    #[test]
+    fn long_program_ok_complex() {
+        let src = r#"
+            function sum_and_map(a, b) {
+                var i = 0, res = 0;
+                for (var k = 0; k < 5; k++) {
+                    if (k % 2 == 0) {
+                        res += a + k;
+                        continue;
+                    } else {
+                        res += b * (k + 1);
+                    }
+                }
+                // 前缀与后缀与普通一元混合（注意避免产生 '+++' 之类的长符号串）
+                res += -++a; // '-' 然后 '++' identifier -> 合法
+                res += d++ * ++e; // d++ (postfix)、++e (prefix on identifier) -> 合法
+                return res ? res : 0;
+            }
+
+            function caller() {
+                var id = 1;
+                foo(id++); // 后缀 ++ 作为函数参数（标识符后缀允许）
+                foo(++id); // 前缀 ++（允许）
+            }
+
+            var total = sum_and_map(1, 2);
+        "#;
+        parse_ok(src);
+    }
+
+    #[test]
+    fn long_program_ok_richer() {
+        let src = r#"
+            var a = 0, b = 1;
+            repeat(3) {
+                a++;
+                if (a > 1) break;
+            }
+            do
+                b += a;
+            until(b > 10);
+
+            while (a < 5) a += 1;
+
+            function nested() {
+                {
+                    { var x = 1; x = x + 2; }
+                }
+                return null;
+            }
+        "#;
+        parse_ok(src);
+    }
+
+
 }
