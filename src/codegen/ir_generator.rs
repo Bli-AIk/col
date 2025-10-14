@@ -178,6 +178,7 @@ impl<'ctx> IRGenerator<'ctx> {
                     BinaryOp::Sub => self.builder.build_float_sub(l, r, "fsub").map(|v| v.into()),
                     BinaryOp::Mul => self.builder.build_float_mul(l, r, "fmul").map(|v| v.into()),
                     BinaryOp::Div => self.builder.build_float_div(l, r, "fdiv").map(|v| v.into()),
+                    BinaryOp::Mod => self.builder.build_float_rem(l, r, "frem").map(|v| v.into()),
                     BinaryOp::Eq => self
                         .builder
                         .build_float_compare(inkwell::FloatPredicate::OEQ, l, r, "feq")
@@ -280,13 +281,51 @@ impl<'ctx> IRGenerator<'ctx> {
                     IRGenError::InvalidOperation(format!("Int operation failed: {}", e))
                 })
             }
+            // Handle mixed int/float operations by promoting int to float
+            (BasicValueEnum::IntValue(l), BasicValueEnum::FloatValue(r)) => {
+                // Convert int to float and retry
+                let l_float = self.builder.build_signed_int_to_float(
+                    l, 
+                    self.type_mapping.get_number_type(), 
+                    "int_to_float"
+                ).map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
+                self.gen_binary_op(op, l_float.into(), r.into())
+            }
+            (BasicValueEnum::FloatValue(l), BasicValueEnum::IntValue(r)) => {
+                // Convert int to float and retry
+                let r_float = self.builder.build_signed_int_to_float(
+                    r, 
+                    self.type_mapping.get_number_type(), 
+                    "int_to_float"
+                ).map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
+                self.gen_binary_op(op, l.into(), r_float.into())
+            }
             _ => Err(IRGenError::TypeMismatch(
                 "Incompatible types for binary operation".to_string(),
             )),
         }
     }
 
-    /// Get the LLVM module for output
+    /// Convert a value to match the expected function return type
+    fn convert_to_return_type(&self, value: BasicValueEnum<'ctx>) -> IRGenResult<BasicValueEnum<'ctx>> {
+        // For now, all functions return double, so convert booleans to double
+        match value {
+            BasicValueEnum::IntValue(int_val) if int_val.get_type() == self.type_mapping.get_bool_type() => {
+                // Convert boolean to double: false -> 0.0, true -> 1.0
+                // Use select instruction to ensure correct conversion
+                let true_val = self.type_mapping.get_number_type().const_float(1.0);
+                let false_val = self.type_mapping.get_number_type().const_float(0.0);
+                let double_val = self.builder.build_select(
+                    int_val, 
+                    true_val, 
+                    false_val, 
+                    "bool_to_double"
+                ).map_err(|e| IRGenError::InvalidOperation(format!("Bool to double conversion failed: {}", e)))?;
+                Ok(double_val.into())
+            }
+            _ => Ok(value), // Other types remain unchanged
+        }
+    }
     pub fn get_module(&self) -> &Module<'ctx> {
         &self.module
     }
@@ -420,7 +459,8 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
         // Build return instruction if current block doesn't have terminator
         if let Some(current_block) = self.builder.get_insert_block() {
             if current_block.get_terminator().is_none() {
-                self.builder.build_return(Some(&last_value)).map_err(|e| {
+                let return_value = self.convert_to_return_type(last_value)?;
+                self.builder.build_return(Some(&return_value)).map_err(|e| {
                     IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
                 })?;
             }
@@ -532,11 +572,16 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                 // Generate then block
                 self.builder.position_at_end(then_block);
                 let then_value = self.visit_stmt(then_stmt)?;
-                self.builder
-                    .build_unconditional_branch(merge_block)
-                    .map_err(|e| {
-                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
-                    })?;
+                
+                // Only add branch if the block doesn't already have a terminator
+                let then_block_final = self.builder.get_insert_block().unwrap();
+                if then_block_final.get_terminator().is_none() {
+                    self.builder
+                        .build_unconditional_branch(merge_block)
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                        })?;
+                }
 
                 // Generate else block
                 self.builder.position_at_end(else_block);
@@ -545,27 +590,48 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                 } else {
                     self.gen_number_const(0.0).into()
                 };
-                self.builder
-                    .build_unconditional_branch(merge_block)
-                    .map_err(|e| {
-                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
-                    })?;
+                
+                // Only add branch if the block doesn't already have a terminator
+                let else_block_final = self.builder.get_insert_block().unwrap();
+                if else_block_final.get_terminator().is_none() {
+                    self.builder
+                        .build_unconditional_branch(merge_block)
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                        })?;
+                }
 
                 // Merge block
                 self.builder.position_at_end(merge_block);
 
-                // Create phi node if values are compatible
-                if then_value.get_type() == else_value.get_type() {
-                    let phi = self
-                        .builder
-                        .build_phi(then_value.get_type(), "ifphi")
-                        .map_err(|e| {
-                            IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
-                        })?;
-                    phi.add_incoming(&[(&then_value, then_block), (&else_value, else_block)]);
-                    Ok(phi.as_basic_value())
-                } else {
+                // Create phi node only if we have values from non-terminated blocks
+                let then_has_terminator = then_block_final.get_terminator().is_some();
+                let else_has_terminator = else_block_final.get_terminator().is_some();
+
+                if !then_has_terminator && !else_has_terminator {
+                    // Both blocks flow to merge, create phi node
+                    if then_value.get_type() == else_value.get_type() {
+                        let phi = self
+                            .builder
+                            .build_phi(then_value.get_type(), "ifphi")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
+                            })?;
+                        phi.add_incoming(&[(&then_value, then_block_final), (&else_value, else_block_final)]);
+                        Ok(phi.as_basic_value())
+                    } else {
+                        Ok(then_value)
+                    }
+                } else if !then_has_terminator {
+                    // Only then block flows to merge
                     Ok(then_value)
+                } else if !else_has_terminator {
+                    // Only else block flows to merge
+                    Ok(else_value)
+                } else {
+                    // Both blocks have terminators, merge block may be unreachable
+                    // Return a dummy value
+                    Ok(self.gen_number_const(0.0).into())
                 }
             }
 
@@ -579,7 +645,8 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
 
             Stmt::Return(expr_opt) => {
                 let value = if let Some(expr) = expr_opt {
-                    self.visit_expr(expr)?
+                    let expr_value = self.visit_expr(expr)?;
+                    self.convert_to_return_type(expr_value)?
                 } else {
                     self.gen_number_const(0.0).into()
                 };
@@ -1190,13 +1257,33 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                 let value = self.visit_expr(expr)?;
                 match value {
                     BasicValueEnum::IntValue(int_val) => {
-                        let result = self.builder.build_not(int_val, "not").map_err(|e| {
+                        // For logical NOT, we need to compare with zero to get boolean result
+                        let zero = int_val.get_type().const_zero();
+                        let result = self.builder.build_int_compare(
+                            inkwell::IntPredicate::EQ, 
+                            int_val, 
+                            zero, 
+                            "not"
+                        ).map_err(|e| {
+                            IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
+                        })?;
+                        Ok(result.into())
+                    }
+                    BasicValueEnum::FloatValue(float_val) => {
+                        // For float values, compare with 0.0
+                        let zero = float_val.get_type().const_zero();
+                        let result = self.builder.build_float_compare(
+                            inkwell::FloatPredicate::OEQ,
+                            float_val,
+                            zero,
+                            "not"
+                        ).map_err(|e| {
                             IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
                         })?;
                         Ok(result.into())
                     }
                     _ => Err(IRGenError::TypeMismatch(
-                        "Not operation requires integer type".to_string(),
+                        "Not operation requires numeric type".to_string(),
                     )),
                 }
             }
