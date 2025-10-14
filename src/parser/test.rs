@@ -1,10 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use crate::parser::expr::{Expr, FuncDef, Program, Stmt, TopLevel};
+    use crate::parser::expr::Expr;
+    use crate::parser::func_def::FuncDef;
+    use crate::parser::program::Program;
     use crate::parser::program_parser;
+    use crate::parser::stmt::Stmt;
+    use crate::parser::top_level::TopLevel;
     use crate::token::Token;
     use chumsky::{input::Stream, prelude::*};
     use logos::Logos;
+
     fn parse_ok(src: &str) -> Program {
         let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
             Ok(tok) => (tok, span.into()),

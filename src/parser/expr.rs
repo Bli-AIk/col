@@ -1,45 +1,4 @@
-#[derive(Debug, Clone)]
-pub struct Program {
-    pub body: Vec<TopLevel>,
-}
-
-#[derive(Debug, Clone)]
-pub enum TopLevel {
-    Statement(Stmt),
-    Function(FuncDef),
-}
-
-#[derive(Debug, Clone)]
-pub struct FuncDef {
-    pub name: String,
-    pub func: Func,
-}
-
-#[derive(Debug, Clone)]
-pub struct Func {
-    pub args: Vec<String>,
-    pub body: Vec<Stmt>,
-}
-
-#[derive(Debug, Clone)]
-pub enum Stmt {
-    Expr(Expr),
-    Var(Vec<(String, Option<Expr>)>),
-    If(Box<Expr>, Box<Stmt>, Option<Box<Stmt>>),
-    Block(Vec<Stmt>),
-    Return(Option<Expr>),
-    Break,
-    Continue,
-    Repeat(Box<Expr>, Box<Stmt>),
-    While(Box<Expr>, Box<Stmt>),
-    DoUntil(Box<Stmt>, Box<Expr>),
-    For(
-        Option<Box<Stmt>>,
-        Option<Box<Expr>>,
-        Option<Box<Stmt>>,
-        Box<Stmt>,
-    ),
-}
+use crate::parser::visitor::Visitor;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -83,4 +42,10 @@ pub enum Expr {
     PostIncrement(Box<Expr>),
     PreDecrement(Box<Expr>),
     PostDecrement(Box<Expr>),
+}
+
+impl Expr {
+    pub fn accept<T>(&self, visitor: &mut dyn Visitor<T>) -> T {
+        visitor.visit_expr(self)
+    }
 }

@@ -1,11 +1,21 @@
 pub mod expr;
+mod func;
+mod func_def;
+mod program;
+mod stmt;
 #[cfg(test)]
 mod test;
+mod top_level;
+pub mod visitor;
 
-use crate::parser::expr::{Expr, Func, FuncDef, Program, Stmt, TopLevel};
+use crate::parser::expr::Expr;
 use crate::token::*;
 use chumsky::{input::ValueInput, prelude::*};
-
+use func::Func;
+use func_def::FuncDef;
+use program::Program;
+use stmt::Stmt;
+use top_level::TopLevel;
 /*
 ----------------------------------------------------------------------------------------------------
 WARNING!!!
