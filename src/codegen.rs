@@ -1,5 +1,5 @@
-use inkwell::types::*;
 use inkwell::context::Context;
+use inkwell::types::*;
 use std::collections::HashMap;
 
 pub mod ir_generator;
@@ -24,29 +24,25 @@ impl<'ctx> TypeMapping<'ctx> {
     /// Initialize built-in types for the language
     fn initialize_builtin_types(&mut self) {
         // Number type (f64 for compatibility with GameMaker's real type)
-        self.type_cache.insert(
-            "number".to_string(),
-            self.context.f64_type().into()
-        );
-        
+        self.type_cache
+            .insert("number".to_string(), self.context.f64_type().into());
+
         // Boolean type (i1)
-        self.type_cache.insert(
-            "bool".to_string(),
-            self.context.bool_type().into()
-        );
-        
+        self.type_cache
+            .insert("bool".to_string(), self.context.bool_type().into());
+
         // Integer type (i32)
-        self.type_cache.insert(
-            "int".to_string(),
-            self.context.i32_type().into()
-        );
-        
+        self.type_cache
+            .insert("int".to_string(), self.context.i32_type().into());
+
         // String type (i8* - pointer to char)
         self.type_cache.insert(
             "string".to_string(),
-            self.context.ptr_type(inkwell::AddressSpace::default()).into()
+            self.context
+                .ptr_type(inkwell::AddressSpace::default())
+                .into(),
         );
-        
+
         // Void type for functions
         // Note: void is stored separately as it's not a BasicType
     }
