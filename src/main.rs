@@ -235,6 +235,16 @@ fn execute_main_function(executor: &codegen::jit::JITExecutor) {
 
 /// Execute test functions if they exist
 fn execute_test_functions(executor: &codegen::jit::JITExecutor) {
+    // Try to execute the test_short_circuit function if it exists
+    match executor.execute_function("test_short_circuit", &[]) {
+        Ok(result) => {
+            println!("{} {}", "test_short_circuit() returned:".green(), result);
+        }
+        Err(e) => {
+            println!("{}", format!("test_short_circuit execution failed: {}", e).yellow());
+        }
+    }
+    
     // Try to execute the test_loops function if it exists
     match executor.execute_function("test_loops", &[]) {
         Ok(result) => {

@@ -100,30 +100,26 @@ ternary_merge:                                    ; preds = %ternary_else, %tern
   %fgt38 = fcmp ogt double %x36, %y37
   %isGreater = alloca i1, align 1
   store i1 %fgt38, ptr %isGreater, align 1
-  %isEqual39 = load double, ptr %isEqual, align 8
-  %tobool = fcmp one double %isEqual39, 0.000000e+00
-  br i1 %tobool, label %and_rhs, label %and_merge
+  %isEqual39 = load i1, ptr %isEqual, align 1
+  br i1 %isEqual39, label %and_rhs, label %and_merge
 
 and_rhs:                                          ; preds = %ternary_merge
-  %isNotEqual40 = load double, ptr %isNotEqual, align 8
-  %tobool41 = fcmp one double %isNotEqual40, 0.000000e+00
+  %isNotEqual40 = load i1, ptr %isNotEqual, align 1
   br label %and_merge
 
 and_merge:                                        ; preds = %and_rhs, %ternary_merge
-  %and_result = phi i1 [ false, %ternary_merge ], [ %tobool41, %and_rhs ]
+  %and_result = phi i1 [ false, %ternary_merge ], [ %isNotEqual40, %and_rhs ]
   %both = alloca i1, align 1
   store i1 %and_result, ptr %both, align 1
-  %isEqual42 = load double, ptr %isEqual, align 8
-  %tobool43 = fcmp one double %isEqual42, 0.000000e+00
-  br i1 %tobool43, label %or_merge, label %or_rhs
+  %isEqual41 = load i1, ptr %isEqual, align 1
+  br i1 %isEqual41, label %or_merge, label %or_rhs
 
 or_rhs:                                           ; preds = %and_merge
-  %isNotEqual44 = load double, ptr %isNotEqual, align 8
-  %tobool45 = fcmp one double %isNotEqual44, 0.000000e+00
+  %isNotEqual42 = load i1, ptr %isNotEqual, align 1
   br label %or_merge
 
 or_merge:                                         ; preds = %or_rhs, %and_merge
-  %or_result = phi i1 [ true, %and_merge ], [ %tobool45, %or_rhs ]
+  %or_result = phi i1 [ true, %and_merge ], [ %isNotEqual42, %or_rhs ]
   %either = alloca i1, align 1
   store i1 %or_result, ptr %either, align 1
   ret double 0.000000e+00

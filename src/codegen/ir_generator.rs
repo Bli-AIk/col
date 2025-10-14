@@ -30,6 +30,7 @@ pub struct IRGenerator<'ctx> {
 
     // Symbol tables
     variables: HashMap<String, PointerValue<'ctx>>,
+    variable_types: HashMap<String, BasicTypeEnum<'ctx>>,
     functions: HashMap<String, FunctionValue<'ctx>>,
 
     // Current function context
@@ -48,6 +49,7 @@ impl<'ctx> IRGenerator<'ctx> {
             builder,
             type_mapping,
             variables: HashMap::new(),
+            variable_types: HashMap::new(),
             functions: HashMap::new(),
             current_function: None,
         }
@@ -89,6 +91,7 @@ impl<'ctx> IRGenerator<'ctx> {
         })?;
 
         self.variables.insert(name.to_string(), alloca);
+        self.variable_types.insert(name.to_string(), value_type);
         Ok(alloca)
     }
 
@@ -103,10 +106,12 @@ impl<'ctx> IRGenerator<'ctx> {
     /// Load a variable's value
     fn load_variable(&self, name: &str) -> IRGenResult<BasicValueEnum<'ctx>> {
         let var_ptr = self.get_variable(name)?;
-        // For LLVM 15+, we need to specify the type explicitly
-        let load_type = self.type_mapping.get_number_type(); // Default to f64 for now
+        // Get the type from our type tracking table
+        let var_type = self.variable_types.get(name)
+            .ok_or_else(|| IRGenError::InvalidOperation(format!("Type information missing for variable '{}'", name)))?;
+        
         self.builder
-            .build_load(load_type, var_ptr, name)
+            .build_load(*var_type, var_ptr, name)
             .map_err(|e| {
                 IRGenError::InvalidOperation(format!("Failed to load variable '{}': {}", name, e))
             })
@@ -156,6 +161,7 @@ impl<'ctx> IRGenerator<'ctx> {
     fn exit_function(&mut self) {
         self.current_function = None;
         self.variables.clear(); // Clear local variables
+        self.variable_types.clear(); // Clear local variable types
     }
 
     /// Generate IR for binary operations
@@ -329,7 +335,9 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
         // Only add return if the block doesn't have a terminator
         if let Some(current_block) = self.builder.get_insert_block() {
             if current_block.get_terminator().is_none() {
-                self.builder.build_return(Some(&last_value)).map_err(|e| {
+                // Always return a double 0.0 from main function, regardless of last expression type
+                let return_value = self.gen_number_const(0.0);
+                self.builder.build_return(Some(&return_value)).map_err(|e| {
                     IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
                 })?;
             }
@@ -384,6 +392,7 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
 
         // Save current state
         let saved_variables = self.variables.clone();
+        let saved_variable_types = self.variable_types.clone();
         let saved_function = self.current_function;
 
         // Generate function body
@@ -419,6 +428,7 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
 
         // Restore state
         self.variables = saved_variables;
+        self.variable_types = saved_variable_types;
         self.current_function = saved_function;
 
         Ok(function.as_global_value().as_pointer_value().into())
