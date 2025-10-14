@@ -26,12 +26,10 @@ mod tests {
         let src = r#"
             var x = 42;
             var y;
-            
             function test_func(a, b) {
                 var local_var = a;
                 return a + b;
             }
-            
             test_func(x, y);
         "#;
 
@@ -160,11 +158,9 @@ mod tests {
             for (var i = 0; i < 10; i++) {
                 var for_var;
             }
-            
             repeat (3) {
                 var repeat_var;
             }
-            
             do {
                 var do_var;
             } until (true);
