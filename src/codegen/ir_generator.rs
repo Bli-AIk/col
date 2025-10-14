@@ -234,6 +234,35 @@ impl<'ctx> IRGenerator<'ctx> {
                 })
             }
             (BasicValueEnum::IntValue(l), BasicValueEnum::IntValue(r)) => {
+                // Check if these are booleans that need to be converted to floats for arithmetic
+                let l_is_bool = l.get_type() == self.type_mapping.get_bool_type();
+                let r_is_bool = r.get_type() == self.type_mapping.get_bool_type();
+                
+                if (l_is_bool || r_is_bool) && matches!(op, BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod) {
+                    // Convert booleans to floats for arithmetic operations
+                    let l_float = if l_is_bool {
+                        let true_val = self.type_mapping.get_number_type().const_float(1.0);
+                        let false_val = self.type_mapping.get_number_type().const_float(0.0);
+                        self.builder.build_select(l, true_val, false_val, "bool_to_float")
+                            .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                    } else {
+                        self.builder.build_signed_int_to_float(l, self.type_mapping.get_number_type(), "int_to_float")
+                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                    };
+                    
+                    let r_float = if r_is_bool {
+                        let true_val = self.type_mapping.get_number_type().const_float(1.0);
+                        let false_val = self.type_mapping.get_number_type().const_float(0.0);
+                        self.builder.build_select(r, true_val, false_val, "bool_to_float")
+                            .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                    } else {
+                        self.builder.build_signed_int_to_float(r, self.type_mapping.get_number_type(), "int_to_float")
+                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                    };
+                    
+                    return self.gen_binary_op(op, l_float, r_float);
+                }
+                
                 let result = match op {
                     BinaryOp::Add => self.builder.build_int_add(l, r, "iadd").map(|v| v.into()),
                     BinaryOp::Sub => self.builder.build_int_sub(l, r, "isub").map(|v| v.into()),
@@ -283,22 +312,30 @@ impl<'ctx> IRGenerator<'ctx> {
             }
             // Handle mixed int/float operations by promoting int to float
             (BasicValueEnum::IntValue(l), BasicValueEnum::FloatValue(r)) => {
-                // Convert int to float and retry
-                let l_float = self.builder.build_signed_int_to_float(
-                    l, 
-                    self.type_mapping.get_number_type(), 
-                    "int_to_float"
-                ).map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
-                self.gen_binary_op(op, l_float.into(), r.into())
+                // Check if left operand is boolean and convert accordingly
+                let l_float = if l.get_type() == self.type_mapping.get_bool_type() {
+                    let true_val = self.type_mapping.get_number_type().const_float(1.0);
+                    let false_val = self.type_mapping.get_number_type().const_float(0.0);
+                    self.builder.build_select(l, true_val, false_val, "bool_to_float")
+                        .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                } else {
+                    self.builder.build_signed_int_to_float(l, self.type_mapping.get_number_type(), "int_to_float")
+                        .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                };
+                self.gen_binary_op(op, l_float, r.into())
             }
             (BasicValueEnum::FloatValue(l), BasicValueEnum::IntValue(r)) => {
-                // Convert int to float and retry
-                let r_float = self.builder.build_signed_int_to_float(
-                    r, 
-                    self.type_mapping.get_number_type(), 
-                    "int_to_float"
-                ).map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
-                self.gen_binary_op(op, l.into(), r_float.into())
+                // Check if right operand is boolean and convert accordingly
+                let r_float = if r.get_type() == self.type_mapping.get_bool_type() {
+                    let true_val = self.type_mapping.get_number_type().const_float(1.0);
+                    let false_val = self.type_mapping.get_number_type().const_float(0.0);
+                    self.builder.build_select(r, true_val, false_val, "bool_to_float")
+                        .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                } else {
+                    self.builder.build_signed_int_to_float(r, self.type_mapping.get_number_type(), "int_to_float")
+                        .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                };
+                self.gen_binary_op(op, l.into(), r_float)
             }
             _ => Err(IRGenError::TypeMismatch(
                 "Incompatible types for binary operation".to_string(),

@@ -125,8 +125,7 @@ mod tests {
             }
         "#;
         let result = compile_and_execute_function(src, "test", &[]).unwrap();
-        // 现在接受实际结果，这个bug可以以后修复
-        assert_eq!(result, -7.0); // 临时接受当前实现的结果
+        assert_eq!(result, -5.0);
     }
 
     #[test]
