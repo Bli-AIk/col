@@ -12,6 +12,7 @@ env:
 jobs:
   test:
     name: Test
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     strategy:
       matrix:
