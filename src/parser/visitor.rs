@@ -7,6 +7,7 @@ use crate::parser::top_level::TopLevel;
 pub mod dead_code_detector;
 pub mod performance_warner;
 pub mod symbol_table_builder;
+pub mod symbol_table_builder_tests;
 pub mod type_checker;
 
 pub trait Visitor<T> {

@@ -59,7 +59,8 @@ fn main() {
 
             let is_pretty_print_symbol_table = true;
             let mut root_scope = visitor::symbol_table_builder::Scope::new();
-            let mut builder = visitor::symbol_table_builder::SymbolTableBuilder::new(&mut root_scope);
+            let mut builder =
+                visitor::symbol_table_builder::SymbolTableBuilder::new(&mut root_scope);
             program.accept(&mut builder);
 
             let symbol_table_debug_str = if is_pretty_print_symbol_table {

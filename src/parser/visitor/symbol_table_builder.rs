@@ -23,7 +23,10 @@ pub struct Scope {
 
 impl Scope {
     pub fn new() -> Self {
-        Self { table: SymbolTable::new(), children: vec![] }
+        Self {
+            table: SymbolTable::new(),
+            children: vec![],
+        }
     }
 }
 
@@ -90,18 +93,21 @@ impl<'a> Visitor<()> for SymbolTableBuilder<'a> {
             Stmt::If(cond, then_stmt, else_stmt_opt) => {
                 cond.accept(self);
                 self.scope.children.push(Scope::new());
-                let mut then_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut then_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 then_stmt.accept(&mut then_visitor);
 
                 if let Some(else_stmt) = else_stmt_opt {
                     self.scope.children.push(Scope::new());
-                    let mut else_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                    let mut else_visitor =
+                        SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                     else_stmt.accept(&mut else_visitor);
                 }
             }
             Stmt::Block(stmts) => {
                 self.scope.children.push(Scope::new());
-                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut sub_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 for stmt in stmts {
                     stmt.accept(&mut sub_visitor);
                 }
@@ -116,24 +122,28 @@ impl<'a> Visitor<()> for SymbolTableBuilder<'a> {
             Stmt::Repeat(count, body) => {
                 count.accept(self);
                 self.scope.children.push(Scope::new());
-                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut sub_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 body.accept(&mut sub_visitor);
             }
             Stmt::While(cond, body) => {
                 cond.accept(self);
                 self.scope.children.push(Scope::new());
-                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut sub_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 body.accept(&mut sub_visitor);
             }
             Stmt::DoUntil(body, cond) => {
                 self.scope.children.push(Scope::new());
-                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut sub_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 body.accept(&mut sub_visitor);
                 cond.accept(self); // Condition is evaluated in the outer scope
             }
             Stmt::For(init, cond_opt, update_opt, body) => {
                 self.scope.children.push(Scope::new());
-                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                let mut sub_visitor =
+                    SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 if let Some(init_stmt) = init {
                     init_stmt.accept(&mut sub_visitor);
                 }
