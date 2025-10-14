@@ -855,8 +855,14 @@ mod tests {
             }
         }
 
-        assert!(found_inner_only, "Inner variable inner_only should exist in some child scope");
-        assert!(found_inner_x, "Inner shadowed x should exist in some child scope");
+        assert!(
+            found_inner_only,
+            "Inner variable inner_only should exist in some child scope"
+        );
+        assert!(
+            found_inner_x,
+            "Inner shadowed x should exist in some child scope"
+        );
     }
 
     #[test]
@@ -893,7 +899,10 @@ mod tests {
                 }
             }
         }
-        assert!(found_inner_name, "At least one child scope should contain another 'name'");
+        assert!(
+            found_inner_name,
+            "At least one child scope should contain another 'name'"
+        );
     }
 
     #[test]
@@ -939,7 +948,10 @@ mod tests {
         assert!(scope.table.contains_key("weird"));
         // If parameters are stored as a vec, check length >= 1 (just ensure no panic)
         if let Some(Symbol::Function { parameters }) = scope.table.get("weird") {
-            assert!(parameters.len() >= 1, "Parameters vector should be recorded at least once (even if duplicated)");
+            assert!(
+                parameters.len() >= 1,
+                "Parameters vector should be recorded at least once (even if duplicated)"
+            );
         } else {
             panic!("weird is not recorded as a function symbol");
         }
@@ -979,8 +991,11 @@ mod tests {
 
         // Pass if all names are recorded
         for name in &["a", "b", "c", "d", "e"] {
-            assert!(scope.table.contains_key(*name), "Expected variable {} to exist", name);
+            assert!(
+                scope.table.contains_key(*name),
+                "Expected variable {} to exist",
+                name
+            );
         }
     }
-
 }
