@@ -52,6 +52,11 @@ impl<'ctx> TypeMapping<'ctx> {
         self.context.f64_type()
     }
 
+    /// Get the LLVM type for an integer value
+    pub fn get_int_type(&self) -> IntType<'ctx> {
+        self.context.i32_type()
+    }
+
     /// Get the LLVM type for a boolean value
     pub fn get_bool_type(&self) -> IntType<'ctx> {
         self.context.bool_type()

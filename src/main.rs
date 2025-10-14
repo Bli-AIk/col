@@ -13,7 +13,7 @@ mod token;
 mod utils;
 
 fn main() {
-    let path = "Sample.gml";
+    let path = "ComplexTest.gml";
 
     // Read source file
     let content = match read_source_file(path) {
@@ -235,13 +235,13 @@ fn execute_main_function(executor: &codegen::jit::JITExecutor) {
 
 /// Execute test functions if they exist
 fn execute_test_functions(executor: &codegen::jit::JITExecutor) {
-    // Try to execute the test_func if it exists
-    match executor.execute_function("test_func", &[10.0]) {
+    // Try to execute the test_loops function if it exists
+    match executor.execute_function("test_loops", &[]) {
         Ok(result) => {
-            println!("{} {}", "test_func(10.0) returned:".green(), result);
+            println!("{} {}", "test_loops() returned:".green(), result);
         }
         Err(e) => {
-            println!("{}", format!("test_func execution failed: {}", e).yellow());
+            println!("{}", format!("test_loops execution failed: {}", e).yellow());
         }
     }
 }
