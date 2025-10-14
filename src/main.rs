@@ -12,8 +12,6 @@ mod token;
 mod utils;
 
 fn main() {
-    // Set to true for pretty-printing the AST
-    let is_pretty_print_ast = false;
     let path = "Sample.gml";
     let content = match fs::read_to_string(path) {
         Ok(data) => data,
@@ -46,15 +44,34 @@ fn main() {
     println!();
     match program_parser().parse(token_stream).into_result() {
         Ok(program) => {
+            // Set to true for pretty-printing the AST
+            let is_pretty_print_ast = false;
             let debug_str = if is_pretty_print_ast {
                 format!("{:#?}", program)
             } else {
                 format!("{:?}", program)
             };
             println!(
-                "{} {}",
-                "Parsed:".green(),
+                "{}\n {}\n",
+                "AST Parsed:".green(),
                 colorize::colorize_brackets(&debug_str)
+            );
+
+            let is_pretty_print_symbol_table = true;
+            let mut root_scope = visitor::symbol_table_builder::Scope::new();
+            let mut builder = visitor::symbol_table_builder::SymbolTableBuilder::new(&mut root_scope);
+            program.accept(&mut builder);
+
+            let symbol_table_debug_str = if is_pretty_print_symbol_table {
+                format!("{:#?}", root_scope)
+            } else {
+                format!("{:?}", root_scope)
+            };
+
+            println!(
+                "{}\n {}\n",
+                "Symbol Table:".green(),
+                colorize::colorize_brackets(&symbol_table_debug_str)
             );
         }
         Err(errs) => {

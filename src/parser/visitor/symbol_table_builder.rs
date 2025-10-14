@@ -5,10 +5,43 @@ use crate::parser::program::Program;
 use crate::parser::stmt::Stmt;
 use crate::parser::top_level::TopLevel;
 use crate::parser::visitor::Visitor;
+use std::collections::HashMap;
 
-pub struct SymbolTableBuilder;
+#[derive(Debug, Clone)]
+pub enum Symbol {
+    Variable,
+    Function { parameters: Vec<String> },
+}
 
-impl Visitor<()> for SymbolTableBuilder {
+pub type SymbolTable = HashMap<String, Symbol>;
+
+#[derive(Debug)]
+pub struct Scope {
+    pub table: SymbolTable,
+    pub children: Vec<Scope>,
+}
+
+impl Scope {
+    pub fn new() -> Self {
+        Self { table: SymbolTable::new(), children: vec![] }
+    }
+}
+
+pub struct SymbolTableBuilder<'a> {
+    scope: &'a mut Scope,
+}
+
+impl<'a> SymbolTableBuilder<'a> {
+    pub fn new(scope: &'a mut Scope) -> Self {
+        Self { scope }
+    }
+
+    fn add_symbol(&mut self, name: String, symbol: Symbol) {
+        self.scope.table.insert(name, symbol);
+    }
+}
+
+impl<'a> Visitor<()> for SymbolTableBuilder<'a> {
     fn visit_program(&mut self, program: &Program) {
         for toplevel in &program.body {
             toplevel.accept(self);
@@ -23,14 +56,23 @@ impl Visitor<()> for SymbolTableBuilder {
     }
 
     fn visit_func_def(&mut self, func_def: &FuncDef) {
-        // TODO: Add function to symbol table
+        self.add_symbol(
+            func_def.name.clone(),
+            Symbol::Function {
+                parameters: func_def.func.args.clone(),
+            },
+        );
         func_def.func.accept(self);
     }
 
     fn visit_func(&mut self, func: &Func) {
-        // TODO: Add arguments to symbol table
+        self.scope.children.push(Scope::new());
+        let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+        for param in &func.args {
+            sub_visitor.add_symbol(param.clone(), Symbol::Variable);
+        }
         for stmt in &func.body {
-            stmt.accept(self);
+            stmt.accept(&mut sub_visitor);
         }
     }
 
@@ -39,7 +81,7 @@ impl Visitor<()> for SymbolTableBuilder {
             Stmt::Expr(expr) => expr.accept(self),
             Stmt::Var(vars) => {
                 for (name, expr_opt) in vars {
-                    // TODO: Add variable to symbol table
+                    self.add_symbol(name.clone(), Symbol::Variable);
                     if let Some(expr) = expr_opt {
                         expr.accept(self);
                     }
@@ -47,14 +89,21 @@ impl Visitor<()> for SymbolTableBuilder {
             }
             Stmt::If(cond, then_stmt, else_stmt_opt) => {
                 cond.accept(self);
-                then_stmt.accept(self);
+                self.scope.children.push(Scope::new());
+                let mut then_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                then_stmt.accept(&mut then_visitor);
+
                 if let Some(else_stmt) = else_stmt_opt {
-                    else_stmt.accept(self);
+                    self.scope.children.push(Scope::new());
+                    let mut else_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                    else_stmt.accept(&mut else_visitor);
                 }
             }
             Stmt::Block(stmts) => {
+                self.scope.children.push(Scope::new());
+                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 for stmt in stmts {
-                    stmt.accept(self);
+                    stmt.accept(&mut sub_visitor);
                 }
             }
             Stmt::Return(expr_opt) => {
@@ -66,27 +115,35 @@ impl Visitor<()> for SymbolTableBuilder {
             Stmt::Continue => {}
             Stmt::Repeat(count, body) => {
                 count.accept(self);
-                body.accept(self);
+                self.scope.children.push(Scope::new());
+                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                body.accept(&mut sub_visitor);
             }
             Stmt::While(cond, body) => {
                 cond.accept(self);
-                body.accept(self);
+                self.scope.children.push(Scope::new());
+                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                body.accept(&mut sub_visitor);
             }
             Stmt::DoUntil(body, cond) => {
-                body.accept(self);
-                cond.accept(self);
+                self.scope.children.push(Scope::new());
+                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
+                body.accept(&mut sub_visitor);
+                cond.accept(self); // Condition is evaluated in the outer scope
             }
             Stmt::For(init, cond_opt, update_opt, body) => {
+                self.scope.children.push(Scope::new());
+                let mut sub_visitor = SymbolTableBuilder::new(self.scope.children.last_mut().unwrap());
                 if let Some(init_stmt) = init {
-                    init_stmt.accept(self);
+                    init_stmt.accept(&mut sub_visitor);
                 }
                 if let Some(cond_expr) = cond_opt {
-                    cond_expr.accept(self);
+                    cond_expr.accept(&mut sub_visitor);
                 }
                 if let Some(update_stmt) = update_opt {
-                    update_stmt.accept(self);
+                    update_stmt.accept(&mut sub_visitor);
                 }
-                body.accept(self);
+                body.accept(&mut sub_visitor);
             }
         }
     }
