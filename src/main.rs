@@ -5,8 +5,10 @@ use logos::Logos;
 use owo_colors::OwoColorize;
 use parser::*;
 use std::fs;
+use codegen::{ir_generator, jit};
 use utils::colorize;
 
+mod codegen;
 mod parser;
 mod token;
 mod utils;
@@ -25,6 +27,15 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    println!();
+    println!("----------Output----------");
+    println!();
+    println!(
+        "{}\n {}\n",
+        "Original Code:".green(),
+        &content
+    );
 
     lex_with_output(&content);
 
@@ -74,6 +85,70 @@ fn main() {
                 "Symbol Table:".green(),
                 colorize::colorize_brackets(&symbol_table_debug_str)
             );
+
+            // Generate LLVM IR
+            println!("{}", "Generating LLVM IR...");
+            let context = inkwell::context::Context::create();
+            let mut ir_generator = ir_generator::IRGenerator::new(&context, "main_module");
+            
+            match program.accept(&mut ir_generator) {
+                Ok(_) => {
+                    println!("{}", "IR Generation completed successfully!".green());
+                    
+                    // Print the generated LLVM IR
+                    println!("\n{}", "Generated LLVM IR:".green());
+                    println!("{}", ir_generator.get_module().print_to_string().to_string());
+
+                    // Save IR to a file
+                    let ir_string = ir_generator.get_module().print_to_string().to_string();
+                    let ir_path = "Sample.ll";
+
+                    match fs::write(ir_path, &ir_string) {
+                        Ok(_) => println!("{} '{}'", "LLVM IR saved to".green(), ir_path),
+                        Err(e) => eprintln!("{} {}", "Failed to write IR file:".red(), e),
+                    }
+
+
+                    // Verify the module
+                    if let Err(errors) = ir_generator.get_module().verify() {
+                        println!("{}", "Module verification failed:".red());
+                        println!("{}", errors.to_string().red());
+                    } else {
+                        println!("{}", "Module verification passed!".green());
+                        
+                        // Try JIT execution
+                        println!("\n{}", "Executing with JIT...");
+                        match jit::JITExecutor::new(ir_generator.get_module()) {
+                            Ok(executor) => {
+                                match executor.execute_main() {
+                                    Ok(result) => {
+                                        println!("{} {}", "Main function returned:".green(), result);
+                                    },
+                                    Err(e) => {
+                                        println!("{}", format!("JIT execution failed: {}", e).red());
+                                    }
+                                }
+                                
+                                // Try to execute the test_func if it exists
+                                match executor.execute_function("test_func", &[10.0]) {
+                                    Ok(result) => {
+                                        println!("{} {}", "test_func(10.0) returned:".green(), result);
+                                    },
+                                    Err(e) => {
+                                        println!("{}", format!("test_func execution failed: {}", e).yellow());
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                println!("{}", format!("Failed to create JIT executor: {}", e).red());
+                            }
+                        }
+                    }
+                },
+                Err(e) => {
+                    println!("{}", format!("IR Generation failed: {:?}", e).red());
+                }
+            }
         }
         Err(errs) => {
             for err in errs {
