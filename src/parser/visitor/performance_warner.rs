@@ -6,6 +6,7 @@ use crate::parser::stmt::Stmt;
 use crate::parser::top_level::TopLevel;
 use crate::parser::visitor::Visitor;
 
+// WIP
 pub struct PerformanceWarner;
 
 impl Visitor<()> for PerformanceWarner {

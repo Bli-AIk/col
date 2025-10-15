@@ -63,15 +63,3 @@ pub(crate) fn compile_and_execute_function(
     let executor = JITExecutor::new(ir_generator.get_module())?;
     executor.execute_function(func_name, args)
 }
-
-pub(crate) fn parse_program(src: &str) -> Program {
-    let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
-        Ok(tok) => (tok, span.into()),
-        Err(_) => (Token::Error, span.into()),
-    });
-    let stream = Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
-    match program_parser().parse(stream).into_result() {
-        Ok(p) => p,
-        Err(errs) => panic!("Parse failed: {:?}", errs),
-    }
-}
