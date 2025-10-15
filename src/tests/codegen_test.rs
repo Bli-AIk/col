@@ -1053,7 +1053,7 @@ mod tests {
             }
         "#;
         let result = compile_and_execute_function(src, "test", &[]).unwrap();
-        assert!((result - 6.28318).abs() < 0.0001);
+        assert!((result - std::f64::consts::TAU).abs() < 0.0001);
     }
 
     // ===============================
