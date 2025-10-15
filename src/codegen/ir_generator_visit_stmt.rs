@@ -55,9 +55,14 @@ impl<'ctx> IRGenerator<'ctx> {
                 self.builder.position_at_end(then_block);
                 let then_value = self.visit_stmt_impl(then_stmt)?;
 
-                // Only add branch if the block doesn't already have a terminator
-                let then_block_final = self.builder.get_insert_block().unwrap();
-                if then_block_final.get_terminator().is_none() {
+                // Check if then block has terminator and note the final block
+                let then_block_after = self.builder.get_insert_block();
+                let then_has_terminator = then_block_after
+                    .map(|bb| bb.get_terminator().is_some())
+                    .unwrap_or(false);
+
+                // Add branch to merge if no terminator
+                if !then_has_terminator && then_block_after.is_some() {
                     self.builder
                         .build_unconditional_branch(merge_block)
                         .map_err(|e| {
@@ -73,9 +78,14 @@ impl<'ctx> IRGenerator<'ctx> {
                     self.gen_number_const(0.0).into()
                 };
 
-                // Only add branch if the block doesn't already have a terminator
-                let else_block_final = self.builder.get_insert_block().unwrap();
-                if else_block_final.get_terminator().is_none() {
+                // Check if else block has terminator and note the final block
+                let else_block_after = self.builder.get_insert_block();
+                let else_has_terminator = else_block_after
+                    .map(|bb| bb.get_terminator().is_some())
+                    .unwrap_or(false);
+
+                // Add branch to merge if no terminator
+                if !else_has_terminator && else_block_after.is_some() {
                     self.builder
                         .build_unconditional_branch(merge_block)
                         .map_err(|e| {
@@ -83,16 +93,16 @@ impl<'ctx> IRGenerator<'ctx> {
                         })?;
                 }
 
-                // Merge block
+                // Position at merge block
                 self.builder.position_at_end(merge_block);
 
-                // Create phi node only if we have values from non-terminated blocks
-                let then_has_terminator = then_block_final.get_terminator().is_some();
-                let else_has_terminator = else_block_final.get_terminator().is_some();
-
+                // Handle different flow combinations
                 if !then_has_terminator && !else_has_terminator {
-                    // Both blocks flow to merge, create phi node
-                    if then_value.get_type() == else_value.get_type() {
+                    // Both blocks flow to merge, create phi node if types match
+                    if then_value.get_type() == else_value.get_type()
+                        && then_block_after.is_some()
+                        && else_block_after.is_some()
+                    {
                         let phi = self
                             .builder
                             .build_phi(then_value.get_type(), "ifphi")
@@ -100,8 +110,8 @@ impl<'ctx> IRGenerator<'ctx> {
                                 IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
                             })?;
                         phi.add_incoming(&[
-                            (&then_value, then_block_final),
-                            (&else_value, else_block_final),
+                            (&then_value, then_block_after.unwrap()),
+                            (&else_value, else_block_after.unwrap()),
                         ]);
                         Ok(phi.as_basic_value())
                     } else {
@@ -114,15 +124,10 @@ impl<'ctx> IRGenerator<'ctx> {
                     // Only else block flows to merge
                     Ok(else_value)
                 } else {
-                    // Both blocks have terminators, merge block may be unreachable
-                    // Only add unreachable if the current block needs a terminator
-                    if let Some(current_block) = self.builder.get_insert_block() {
-                        if current_block.get_terminator().is_none() {
-                            self.builder.build_unreachable().map_err(|e| {
-                                IRGenError::InvalidOperation(format!("Failed to build unreachable: {}", e))
-                            })?;
-                        }
-                    }
+                    // Both blocks have terminators, merge block is unreachable
+                    self.builder.build_unreachable().map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build unreachable: {}", e))
+                    })?;
                     Ok(self.gen_number_const(0.0).into())
                 }
             }
@@ -130,6 +135,13 @@ impl<'ctx> IRGenerator<'ctx> {
             Stmt::Block(stmts) => {
                 let mut last_value = self.gen_number_const(0.0).into();
                 for stmt in stmts {
+                    // Check if current block already has a terminator
+                    if let Some(current_block) = self.builder.get_insert_block() {
+                        if current_block.get_terminator().is_some() {
+                            // Current block is terminated, skip remaining statements
+                            break;
+                        }
+                    }
                     last_value = self.visit_stmt_impl(stmt)?;
                 }
                 Ok(last_value)
@@ -526,7 +538,7 @@ impl<'ctx> IRGenerator<'ctx> {
 
         // Position at exit block and add terminator if needed
         self.builder.position_at_end(exit_block);
-        
+
         // For loops with infinite conditions (;;), the exit block is unreachable
         // but still needs a terminator for LLVM verification
         if cond.is_none() {
@@ -536,7 +548,7 @@ impl<'ctx> IRGenerator<'ctx> {
             })?;
         }
         // For normal loops, the exit block should already be properly handled by conditional branches
-        
+
         Ok(self.gen_number_const(0.0).into())
     }
 }

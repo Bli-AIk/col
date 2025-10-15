@@ -329,12 +329,13 @@ impl<'ctx> IRGenerator<'ctx> {
                                     e
                                 ))
                             })?;
-                        let not_result = self.builder.build_not(int_val, "bitnot").map_err(|e| {
-                            IRGenError::InvalidOperation(format!(
-                                "Failed to build bitwise not: {}",
-                                e
-                            ))
-                        })?;
+                        let not_result =
+                            self.builder.build_not(int_val, "bitnot").map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build bitwise not: {}",
+                                    e
+                                ))
+                            })?;
                         let float_result = self
                             .builder
                             .build_signed_int_to_float(

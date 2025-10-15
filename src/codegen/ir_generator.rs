@@ -173,6 +173,13 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
         // Generate function body
         let mut last_value = self.gen_number_const(0.0).into();
         for stmt in &func_def.func.body {
+            // Check if current block already has a terminator
+            if let Some(current_block) = self.builder.get_insert_block() {
+                if current_block.get_terminator().is_some() {
+                    // Current block is terminated, skip remaining statements
+                    break;
+                }
+            }
             last_value = self.visit_stmt(stmt)?;
         }
 
