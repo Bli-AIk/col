@@ -68,6 +68,28 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     
+    - name: Install LLVM 18 (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+        sudo apt-get install -y llvm-18-dev libclang-18-dev
+        echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
+    
+    - name: Install LLVM 18 (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install llvm@18
+        echo "/opt/homebrew/opt/llvm@18/bin" >> $GITHUB_PATH
+        echo "LLVM_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18" >> $GITHUB_ENV
+    
+    - name: Install LLVM 18 (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install llvm --version=18.1.8
+        echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
+    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -109,6 +131,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
     - uses: actions/checkout@v5
+    
+    - name: Install LLVM 18
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+        sudo apt-get install -y llvm-18-dev libclang-18-dev
+        echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
