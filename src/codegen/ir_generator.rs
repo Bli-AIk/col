@@ -107,9 +107,13 @@ impl<'ctx> IRGenerator<'ctx> {
     fn load_variable(&self, name: &str) -> IRGenResult<BasicValueEnum<'ctx>> {
         let var_ptr = self.get_variable(name)?;
         // Get the type from our type tracking table
-        let var_type = self.variable_types.get(name)
-            .ok_or_else(|| IRGenError::InvalidOperation(format!("Type information missing for variable '{}'", name)))?;
-        
+        let var_type = self.variable_types.get(name).ok_or_else(|| {
+            IRGenError::InvalidOperation(format!(
+                "Type information missing for variable '{}'",
+                name
+            ))
+        })?;
+
         self.builder
             .build_load(*var_type, var_ptr, name)
             .map_err(|e| {
@@ -205,23 +209,51 @@ impl<'ctx> IRGenerator<'ctx> {
                         .map(|v| v.into()),
                     // For bitwise operations on floats, convert to int, operate, then convert back
                     BinaryOp::BitAnd | BinaryOp::BitOr | BinaryOp::BitXor => {
-                        let l_int = self.builder.build_float_to_signed_int(l, self.type_mapping.get_int_type(), "f2i_l")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Float to int conversion failed: {}", e)))?;
-                        let r_int = self.builder.build_float_to_signed_int(r, self.type_mapping.get_int_type(), "f2i_r")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Float to int conversion failed: {}", e)))?;
-                        
+                        let l_int = self
+                            .builder
+                            .build_float_to_signed_int(l, self.type_mapping.get_int_type(), "f2i_l")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Float to int conversion failed: {}",
+                                    e
+                                ))
+                            })?;
+                        let r_int = self
+                            .builder
+                            .build_float_to_signed_int(r, self.type_mapping.get_int_type(), "f2i_r")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Float to int conversion failed: {}",
+                                    e
+                                ))
+                            })?;
+
                         let int_result = match op {
                             BinaryOp::BitAnd => self.builder.build_and(l_int, r_int, "ibitand"),
                             BinaryOp::BitOr => self.builder.build_or(l_int, r_int, "ibitor"),
                             BinaryOp::BitXor => self.builder.build_xor(l_int, r_int, "ibitxor"),
                             _ => unreachable!(),
-                        }.map_err(|e| IRGenError::InvalidOperation(format!("Bitwise operation failed: {}", e)))?;
-                        
-                        let float_result = self.builder.build_signed_int_to_float(int_result, self.type_mapping.get_number_type(), "i2f")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
-                        
+                        }
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!("Bitwise operation failed: {}", e))
+                        })?;
+
+                        let float_result = self
+                            .builder
+                            .build_signed_int_to_float(
+                                int_result,
+                                self.type_mapping.get_number_type(),
+                                "i2f",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Int to float conversion failed: {}",
+                                    e
+                                ))
+                            })?;
+
                         Ok(float_result.into())
-                    },
+                    }
                     _ => {
                         return Err(IRGenError::InvalidOperation(format!(
                             "Unsupported float operation: {:?}",
@@ -237,32 +269,75 @@ impl<'ctx> IRGenerator<'ctx> {
                 // Check if these are booleans that need to be converted to floats for arithmetic
                 let l_is_bool = l.get_type() == self.type_mapping.get_bool_type();
                 let r_is_bool = r.get_type() == self.type_mapping.get_bool_type();
-                
-                if (l_is_bool || r_is_bool) && matches!(op, BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod) {
+
+                if (l_is_bool || r_is_bool)
+                    && matches!(
+                        op,
+                        BinaryOp::Add
+                            | BinaryOp::Sub
+                            | BinaryOp::Mul
+                            | BinaryOp::Div
+                            | BinaryOp::Mod
+                    )
+                {
                     // Convert booleans to floats for arithmetic operations
                     let l_float = if l_is_bool {
                         let true_val = self.type_mapping.get_number_type().const_float(1.0);
                         let false_val = self.type_mapping.get_number_type().const_float(0.0);
-                        self.builder.build_select(l, true_val, false_val, "bool_to_float")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                        self.builder
+                            .build_select(l, true_val, false_val, "bool_to_float")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Bool to float conversion failed: {}",
+                                    e
+                                ))
+                            })?
                     } else {
-                        self.builder.build_signed_int_to_float(l, self.type_mapping.get_number_type(), "int_to_float")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                        self.builder
+                            .build_signed_int_to_float(
+                                l,
+                                self.type_mapping.get_number_type(),
+                                "int_to_float",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Int to float conversion failed: {}",
+                                    e
+                                ))
+                            })?
+                            .into()
                     };
-                    
+
                     let r_float = if r_is_bool {
                         let true_val = self.type_mapping.get_number_type().const_float(1.0);
                         let false_val = self.type_mapping.get_number_type().const_float(0.0);
-                        self.builder.build_select(r, true_val, false_val, "bool_to_float")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                        self.builder
+                            .build_select(r, true_val, false_val, "bool_to_float")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Bool to float conversion failed: {}",
+                                    e
+                                ))
+                            })?
                     } else {
-                        self.builder.build_signed_int_to_float(r, self.type_mapping.get_number_type(), "int_to_float")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                        self.builder
+                            .build_signed_int_to_float(
+                                r,
+                                self.type_mapping.get_number_type(),
+                                "int_to_float",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Int to float conversion failed: {}",
+                                    e
+                                ))
+                            })?
+                            .into()
                     };
-                    
+
                     return self.gen_binary_op(op, l_float, r_float);
                 }
-                
+
                 let result = match op {
                     BinaryOp::Add => self.builder.build_int_add(l, r, "iadd").map(|v| v.into()),
                     BinaryOp::Sub => self.builder.build_int_sub(l, r, "isub").map(|v| v.into()),
@@ -316,11 +391,28 @@ impl<'ctx> IRGenerator<'ctx> {
                 let l_float = if l.get_type() == self.type_mapping.get_bool_type() {
                     let true_val = self.type_mapping.get_number_type().const_float(1.0);
                     let false_val = self.type_mapping.get_number_type().const_float(0.0);
-                    self.builder.build_select(l, true_val, false_val, "bool_to_float")
-                        .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                    self.builder
+                        .build_select(l, true_val, false_val, "bool_to_float")
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Bool to float conversion failed: {}",
+                                e
+                            ))
+                        })?
                 } else {
-                    self.builder.build_signed_int_to_float(l, self.type_mapping.get_number_type(), "int_to_float")
-                        .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                    self.builder
+                        .build_signed_int_to_float(
+                            l,
+                            self.type_mapping.get_number_type(),
+                            "int_to_float",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Int to float conversion failed: {}",
+                                e
+                            ))
+                        })?
+                        .into()
                 };
                 self.gen_binary_op(op, l_float, r.into())
             }
@@ -329,11 +421,28 @@ impl<'ctx> IRGenerator<'ctx> {
                 let r_float = if r.get_type() == self.type_mapping.get_bool_type() {
                     let true_val = self.type_mapping.get_number_type().const_float(1.0);
                     let false_val = self.type_mapping.get_number_type().const_float(0.0);
-                    self.builder.build_select(r, true_val, false_val, "bool_to_float")
-                        .map_err(|e| IRGenError::InvalidOperation(format!("Bool to float conversion failed: {}", e)))?
+                    self.builder
+                        .build_select(r, true_val, false_val, "bool_to_float")
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Bool to float conversion failed: {}",
+                                e
+                            ))
+                        })?
                 } else {
-                    self.builder.build_signed_int_to_float(r, self.type_mapping.get_number_type(), "int_to_float")
-                        .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?.into()
+                    self.builder
+                        .build_signed_int_to_float(
+                            r,
+                            self.type_mapping.get_number_type(),
+                            "int_to_float",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Int to float conversion failed: {}",
+                                e
+                            ))
+                        })?
+                        .into()
                 };
                 self.gen_binary_op(op, l.into(), r_float)
             }
@@ -344,20 +453,28 @@ impl<'ctx> IRGenerator<'ctx> {
     }
 
     /// Convert a value to match the expected function return type
-    fn convert_to_return_type(&self, value: BasicValueEnum<'ctx>) -> IRGenResult<BasicValueEnum<'ctx>> {
+    fn convert_to_return_type(
+        &self,
+        value: BasicValueEnum<'ctx>,
+    ) -> IRGenResult<BasicValueEnum<'ctx>> {
         // For now, all functions return double, so convert booleans to double
         match value {
-            BasicValueEnum::IntValue(int_val) if int_val.get_type() == self.type_mapping.get_bool_type() => {
+            BasicValueEnum::IntValue(int_val)
+                if int_val.get_type() == self.type_mapping.get_bool_type() =>
+            {
                 // Convert boolean to double: false -> 0.0, true -> 1.0
                 // Use select instruction to ensure correct conversion
                 let true_val = self.type_mapping.get_number_type().const_float(1.0);
                 let false_val = self.type_mapping.get_number_type().const_float(0.0);
-                let double_val = self.builder.build_select(
-                    int_val, 
-                    true_val, 
-                    false_val, 
-                    "bool_to_double"
-                ).map_err(|e| IRGenError::InvalidOperation(format!("Bool to double conversion failed: {}", e)))?;
+                let double_val = self
+                    .builder
+                    .build_select(int_val, true_val, false_val, "bool_to_double")
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Bool to double conversion failed: {}",
+                            e
+                        ))
+                    })?;
                 Ok(double_val.into())
             }
             _ => Ok(value), // Other types remain unchanged
@@ -403,9 +520,9 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
         let main_function = self.module.add_function("main", main_fn_type, None);
         self.enter_function(main_function);
 
-        let mut last_value = self.gen_number_const(0.0).into();
+        let mut _last_value = self.gen_number_const(0.0).into();
         for toplevel in &program.body {
-            last_value = toplevel.accept(self)?;
+            _last_value = toplevel.accept(self)?;
         }
 
         // Only add return if the block doesn't have a terminator
@@ -413,9 +530,11 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
             if current_block.get_terminator().is_none() {
                 // Always return a double 0.0 from main function, regardless of last expression type
                 let return_value = self.gen_number_const(0.0);
-                self.builder.build_return(Some(&return_value)).map_err(|e| {
-                    IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
-                })?;
+                self.builder
+                    .build_return(Some(&return_value))
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
+                    })?;
             }
         }
 
@@ -497,9 +616,11 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
         if let Some(current_block) = self.builder.get_insert_block() {
             if current_block.get_terminator().is_none() {
                 let return_value = self.convert_to_return_type(last_value)?;
-                self.builder.build_return(Some(&return_value)).map_err(|e| {
-                    IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
-                })?;
+                self.builder
+                    .build_return(Some(&return_value))
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build return: {}", e))
+                    })?;
             }
         }
 
@@ -609,7 +730,7 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                 // Generate then block
                 self.builder.position_at_end(then_block);
                 let then_value = self.visit_stmt(then_stmt)?;
-                
+
                 // Only add branch if the block doesn't already have a terminator
                 let then_block_final = self.builder.get_insert_block().unwrap();
                 if then_block_final.get_terminator().is_none() {
@@ -627,7 +748,7 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                 } else {
                     self.gen_number_const(0.0).into()
                 };
-                
+
                 // Only add branch if the block doesn't already have a terminator
                 let else_block_final = self.builder.get_insert_block().unwrap();
                 if else_block_final.get_terminator().is_none() {
@@ -654,7 +775,10 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                             .map_err(|e| {
                                 IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
                             })?;
-                        phi.add_incoming(&[(&then_value, then_block_final), (&else_value, else_block_final)]);
+                        phi.add_incoming(&[
+                            (&then_value, then_block_final),
+                            (&else_value, else_block_final),
+                        ]);
                         Ok(phi.as_basic_value())
                     } else {
                         Ok(then_value)
@@ -712,301 +836,472 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
             }
 
             Stmt::While(cond, body) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("While loop outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("While loop outside function".to_string())
+                })?;
+
                 let cond_block = self.context.append_basic_block(current_fn, "while_cond");
                 let body_block = self.context.append_basic_block(current_fn, "while_body");
                 let exit_block = self.context.append_basic_block(current_fn, "while_exit");
-                
+
                 // Jump to condition block
-                self.builder.build_unconditional_branch(cond_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
-                
+                self.builder
+                    .build_unconditional_branch(cond_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
+
                 // Generate condition block
                 self.builder.position_at_end(cond_block);
                 let cond_value = self.visit_expr(cond)?;
-                
+
                 // Convert condition to i1 if needed
                 let cond_i1 = match cond_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid condition type".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid condition type".to_string(),
+                        ));
+                    }
                 };
-                
-                self.builder.build_conditional_branch(cond_i1, body_block, exit_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
-                
+
+                self.builder
+                    .build_conditional_branch(cond_i1, body_block, exit_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
+
                 // Generate body block
                 self.builder.position_at_end(body_block);
                 self.visit_stmt(body)?;
-                
+
                 // Jump back to condition (if no terminator)
                 if let Some(current_block) = self.builder.get_insert_block() {
                     if current_block.get_terminator().is_none() {
-                        self.builder.build_unconditional_branch(cond_block)
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                        self.builder
+                            .build_unconditional_branch(cond_block)
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build branch: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
-                
+
                 // Position at exit block
                 self.builder.position_at_end(exit_block);
                 Ok(self.gen_number_const(0.0).into())
             }
 
             Stmt::DoUntil(body, cond) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("Do-until loop outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("Do-until loop outside function".to_string())
+                })?;
+
                 let body_block = self.context.append_basic_block(current_fn, "do_body");
                 let cond_block = self.context.append_basic_block(current_fn, "do_cond");
                 let exit_block = self.context.append_basic_block(current_fn, "do_exit");
-                
+
                 // Jump to body block first
-                self.builder.build_unconditional_branch(body_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
-                
+                self.builder
+                    .build_unconditional_branch(body_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
+
                 // Generate body block
                 self.builder.position_at_end(body_block);
                 self.visit_stmt(body)?;
-                
+
                 // Jump to condition (if no terminator)
                 if let Some(current_block) = self.builder.get_insert_block() {
                     if current_block.get_terminator().is_none() {
-                        self.builder.build_unconditional_branch(cond_block)
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                        self.builder
+                            .build_unconditional_branch(cond_block)
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build branch: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
-                
+
                 // Generate condition block
                 self.builder.position_at_end(cond_block);
                 let cond_value = self.visit_expr(cond)?;
-                
+
                 // Convert condition to i1 if needed (note: until means loop while NOT condition)
                 let cond_i1 = match cond_value {
                     BasicValueEnum::IntValue(int_val) => {
                         let bool_val = if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         };
                         // Invert for "until" semantics
                         self.builder.build_not(bool_val, "not").map_err(|e| {
                             IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
                         })?
-                    },
+                    }
                     BasicValueEnum::FloatValue(float_val) => {
                         // until condition is true, so continue while condition is false
-                        self.builder.build_float_compare(
-                            inkwell::FloatPredicate::OEQ, // Equal to zero means false, continue
-                            float_val,
-                            float_val.get_type().const_zero(),
-                            "until_cond"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid condition type".to_string())),
+                        self.builder
+                            .build_float_compare(
+                                inkwell::FloatPredicate::OEQ, // Equal to zero means false, continue
+                                float_val,
+                                float_val.get_type().const_zero(),
+                                "until_cond",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to convert float to bool: {}",
+                                    e
+                                ))
+                            })?
+                    }
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid condition type".to_string(),
+                        ));
+                    }
                 };
-                
-                self.builder.build_conditional_branch(cond_i1, body_block, exit_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
-                
+
+                self.builder
+                    .build_conditional_branch(cond_i1, body_block, exit_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
+
                 // Position at exit block
                 self.builder.position_at_end(exit_block);
                 Ok(self.gen_number_const(0.0).into())
             }
 
             Stmt::Repeat(count_expr, body) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("Repeat loop outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("Repeat loop outside function".to_string())
+                })?;
+
                 // Generate the count value
                 let count_value = self.visit_expr(count_expr)?;
-                
+
                 // Convert to integer if it's a float
                 let count_int = match count_value {
                     BasicValueEnum::IntValue(int_val) => int_val,
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_to_signed_int(
-                            float_val, 
-                            self.type_mapping.get_int_type(), 
-                            "repeat_count"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to int: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Repeat count must be numeric".to_string())),
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_to_signed_int(
+                            float_val,
+                            self.type_mapping.get_int_type(),
+                            "repeat_count",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to int: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Repeat count must be numeric".to_string(),
+                        ));
+                    }
                 };
-                
+
                 // Allocate counter variable
-                let counter_alloca = self.builder.build_alloca(self.type_mapping.get_int_type(), "repeat_counter")
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to allocate counter: {}", e)))?;
+                let counter_alloca = self
+                    .builder
+                    .build_alloca(self.type_mapping.get_int_type(), "repeat_counter")
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to allocate counter: {}", e))
+                    })?;
                 let zero = self.type_mapping.get_int_type().const_zero();
-                self.builder.build_store(counter_alloca, zero)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to store counter: {}", e)))?;
-                
+                self.builder
+                    .build_store(counter_alloca, zero)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to store counter: {}", e))
+                    })?;
+
                 let cond_block = self.context.append_basic_block(current_fn, "repeat_cond");
                 let body_block = self.context.append_basic_block(current_fn, "repeat_body");
                 let exit_block = self.context.append_basic_block(current_fn, "repeat_exit");
-                
+
                 // Jump to condition block
-                self.builder.build_unconditional_branch(cond_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
-                
+                self.builder
+                    .build_unconditional_branch(cond_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
+
                 // Generate condition block
                 self.builder.position_at_end(cond_block);
-                let current_counter = self.builder.build_load(self.type_mapping.get_int_type(), counter_alloca, "counter")
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to load counter: {}", e)))?;
-                
+                let current_counter = self
+                    .builder
+                    .build_load(self.type_mapping.get_int_type(), counter_alloca, "counter")
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to load counter: {}", e))
+                    })?;
+
                 let cond_result = if let BasicValueEnum::IntValue(counter_val) = current_counter {
-                    self.builder.build_int_compare(
-                        inkwell::IntPredicate::SLT, 
-                        counter_val, 
-                        count_int, 
-                        "repeat_cond"
-                    ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to compare counter: {}", e)))?
+                    self.builder
+                        .build_int_compare(
+                            inkwell::IntPredicate::SLT,
+                            counter_val,
+                            count_int,
+                            "repeat_cond",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to compare counter: {}",
+                                e
+                            ))
+                        })?
                 } else {
-                    return Err(IRGenError::TypeMismatch("Counter should be integer".to_string()));
+                    return Err(IRGenError::TypeMismatch(
+                        "Counter should be integer".to_string(),
+                    ));
                 };
-                
-                self.builder.build_conditional_branch(cond_result, body_block, exit_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
-                
+
+                self.builder
+                    .build_conditional_branch(cond_result, body_block, exit_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
+
                 // Generate body block
                 self.builder.position_at_end(body_block);
                 self.visit_stmt(body)?;
-                
+
                 // Increment counter (if no terminator)
                 if let Some(current_block) = self.builder.get_insert_block() {
                     if current_block.get_terminator().is_none() {
-                        let current_counter = self.builder.build_load(self.type_mapping.get_int_type(), counter_alloca, "counter")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to load counter: {}", e)))?;
-                        
+                        let current_counter = self
+                            .builder
+                            .build_load(self.type_mapping.get_int_type(), counter_alloca, "counter")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to load counter: {}",
+                                    e
+                                ))
+                            })?;
+
                         if let BasicValueEnum::IntValue(counter_val) = current_counter {
                             let one = self.type_mapping.get_int_type().const_int(1, false);
-                            let incremented = self.builder.build_int_add(counter_val, one, "inc_counter")
-                                .map_err(|e| IRGenError::InvalidOperation(format!("Failed to increment counter: {}", e)))?;
-                            self.builder.build_store(counter_alloca, incremented)
-                                .map_err(|e| IRGenError::InvalidOperation(format!("Failed to store counter: {}", e)))?;
+                            let incremented = self
+                                .builder
+                                .build_int_add(counter_val, one, "inc_counter")
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to increment counter: {}",
+                                        e
+                                    ))
+                                })?;
+                            self.builder
+                                .build_store(counter_alloca, incremented)
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to store counter: {}",
+                                        e
+                                    ))
+                                })?;
                         }
-                        
-                        self.builder.build_unconditional_branch(cond_block)
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+
+                        self.builder
+                            .build_unconditional_branch(cond_block)
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build branch: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
-                
+
                 // Position at exit block
                 self.builder.position_at_end(exit_block);
                 Ok(self.gen_number_const(0.0).into())
             }
 
             Stmt::For(init, cond, update, body) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("For loop outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("For loop outside function".to_string())
+                })?;
+
                 // Execute initialization if present
                 if let Some(init_stmt) = init {
                     self.visit_stmt(init_stmt)?;
                 }
-                
+
                 let cond_block = self.context.append_basic_block(current_fn, "for_cond");
                 let body_block = self.context.append_basic_block(current_fn, "for_body");
                 let update_block = self.context.append_basic_block(current_fn, "for_update");
                 let exit_block = self.context.append_basic_block(current_fn, "for_exit");
-                
+
                 // Jump to condition block
-                self.builder.build_unconditional_branch(cond_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
-                
+                self.builder
+                    .build_unconditional_branch(cond_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
+
                 // Generate condition block
                 self.builder.position_at_end(cond_block);
-                
+
                 let should_continue = if let Some(cond_expr) = cond {
                     let cond_value = self.visit_expr(cond_expr)?;
-                    
+
                     // Convert condition to i1 if needed
                     match cond_value {
                         BasicValueEnum::IntValue(int_val) => {
                             if int_val.get_type() == self.type_mapping.get_bool_type() {
                                 int_val
                             } else {
-                                self.builder.build_int_compare(
-                                    inkwell::IntPredicate::NE, 
-                                    int_val, 
-                                    int_val.get_type().const_zero(), 
-                                    "tobool"
-                                ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                                self.builder
+                                    .build_int_compare(
+                                        inkwell::IntPredicate::NE,
+                                        int_val,
+                                        int_val.get_type().const_zero(),
+                                        "tobool",
+                                    )
+                                    .map_err(|e| {
+                                        IRGenError::InvalidOperation(format!(
+                                            "Failed to convert to bool: {}",
+                                            e
+                                        ))
+                                    })?
                             }
-                        },
-                        BasicValueEnum::FloatValue(float_val) => {
-                            self.builder.build_float_compare(
+                        }
+                        BasicValueEnum::FloatValue(float_val) => self
+                            .builder
+                            .build_float_compare(
                                 inkwell::FloatPredicate::ONE,
                                 float_val,
                                 float_val.get_type().const_zero(),
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                        },
-                        _ => return Err(IRGenError::TypeMismatch("Invalid condition type".to_string())),
+                                "tobool",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to convert float to bool: {}",
+                                    e
+                                ))
+                            })?,
+                        _ => {
+                            return Err(IRGenError::TypeMismatch(
+                                "Invalid condition type".to_string(),
+                            ));
+                        }
                     }
                 } else {
                     // No condition means infinite loop - always true
                     self.type_mapping.get_bool_type().const_int(1, false)
                 };
-                
-                self.builder.build_conditional_branch(should_continue, body_block, exit_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
-                
+
+                self.builder
+                    .build_conditional_branch(should_continue, body_block, exit_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
+
                 // Generate body block
                 self.builder.position_at_end(body_block);
                 self.visit_stmt(body)?;
-                
+
                 // Jump to update block (if no terminator)
                 if let Some(current_block) = self.builder.get_insert_block() {
                     if current_block.get_terminator().is_none() {
-                        self.builder.build_unconditional_branch(update_block)
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                        self.builder
+                            .build_unconditional_branch(update_block)
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build branch: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
-                
+
                 // Generate update block
                 self.builder.position_at_end(update_block);
                 if let Some(update_stmt) = update {
                     self.visit_stmt(update_stmt)?;
                 }
-                
+
                 // Jump back to condition (if no terminator)
                 if let Some(current_block) = self.builder.get_insert_block() {
                     if current_block.get_terminator().is_none() {
-                        self.builder.build_unconditional_branch(cond_block)
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                        self.builder
+                            .build_unconditional_branch(cond_block)
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build branch: {}",
+                                    e
+                                ))
+                            })?;
                     }
                 }
-                
+
                 // Position at exit block
                 self.builder.position_at_end(exit_block);
                 Ok(self.gen_number_const(0.0).into())
             }
-
         }
     }
 
@@ -1113,173 +1408,263 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
 
             // Logical operations (short-circuit evaluation)
             Expr::And(lhs, rhs) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("Logical AND outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("Logical AND outside function".to_string())
+                })?;
+
                 let lhs_value = self.visit_expr(lhs)?;
-                
+
                 // Convert lhs to boolean
                 let lhs_bool = match lhs_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid type for logical operation".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid type for logical operation".to_string(),
+                        ));
+                    }
                 };
-                
+
                 let rhs_block = self.context.append_basic_block(current_fn, "and_rhs");
                 let merge_block = self.context.append_basic_block(current_fn, "and_merge");
-                
+
                 // If lhs is false, short-circuit to merge with false
-                self.builder.build_conditional_branch(lhs_bool, rhs_block, merge_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
+                self.builder
+                    .build_conditional_branch(lhs_bool, rhs_block, merge_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
                 let lhs_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Evaluate rhs if lhs was true
                 self.builder.position_at_end(rhs_block);
                 let rhs_value = self.visit_expr(rhs)?;
-                
+
                 // Convert rhs to boolean
                 let rhs_bool = match rhs_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid type for logical operation".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid type for logical operation".to_string(),
+                        ));
+                    }
                 };
-                
-                self.builder.build_unconditional_branch(merge_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
                 let rhs_end_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Merge block with PHI
                 self.builder.position_at_end(merge_block);
-                let phi = self.builder.build_phi(self.type_mapping.get_bool_type(), "and_result")
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build phi: {}", e)))?;
-                
+                let phi = self
+                    .builder
+                    .build_phi(self.type_mapping.get_bool_type(), "and_result")
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
+                    })?;
+
                 let false_val = self.type_mapping.get_bool_type().const_zero();
-                phi.add_incoming(&[
-                    (&false_val, lhs_block),
-                    (&rhs_bool, rhs_end_block)
-                ]);
-                
+                phi.add_incoming(&[(&false_val, lhs_block), (&rhs_bool, rhs_end_block)]);
+
                 Ok(phi.as_basic_value())
             }
             Expr::Or(lhs, rhs) => {
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("Logical OR outside function".to_string()))?;
-                
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("Logical OR outside function".to_string())
+                })?;
+
                 let lhs_value = self.visit_expr(lhs)?;
-                
+
                 // Convert lhs to boolean
                 let lhs_bool = match lhs_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid type for logical operation".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid type for logical operation".to_string(),
+                        ));
+                    }
                 };
-                
+
                 let rhs_block = self.context.append_basic_block(current_fn, "or_rhs");
                 let merge_block = self.context.append_basic_block(current_fn, "or_merge");
-                
+
                 // If lhs is true, short-circuit to merge with true
-                self.builder.build_conditional_branch(lhs_bool, merge_block, rhs_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
+                self.builder
+                    .build_conditional_branch(lhs_bool, merge_block, rhs_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
                 let lhs_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Evaluate rhs if lhs was false
                 self.builder.position_at_end(rhs_block);
                 let rhs_value = self.visit_expr(rhs)?;
-                
+
                 // Convert rhs to boolean
                 let rhs_bool = match rhs_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid type for logical operation".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid type for logical operation".to_string(),
+                        ));
+                    }
                 };
-                
-                self.builder.build_unconditional_branch(merge_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
                 let rhs_end_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Merge block with PHI
                 self.builder.position_at_end(merge_block);
-                let phi = self.builder.build_phi(self.type_mapping.get_bool_type(), "or_result")
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build phi: {}", e)))?;
-                
+                let phi = self
+                    .builder
+                    .build_phi(self.type_mapping.get_bool_type(), "or_result")
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
+                    })?;
+
                 let true_val = self.type_mapping.get_bool_type().const_int(1, false);
-                phi.add_incoming(&[
-                    (&true_val, lhs_block),
-                    (&rhs_bool, rhs_end_block)
-                ]);
-                
+                phi.add_incoming(&[(&true_val, lhs_block), (&rhs_bool, rhs_end_block)]);
+
                 Ok(phi.as_basic_value())
             }
             Expr::Xor(lhs, rhs) => {
@@ -1296,27 +1681,28 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                     BasicValueEnum::IntValue(int_val) => {
                         // For logical NOT, we need to compare with zero to get boolean result
                         let zero = int_val.get_type().const_zero();
-                        let result = self.builder.build_int_compare(
-                            inkwell::IntPredicate::EQ, 
-                            int_val, 
-                            zero, 
-                            "not"
-                        ).map_err(|e| {
-                            IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
-                        })?;
+                        let result = self
+                            .builder
+                            .build_int_compare(inkwell::IntPredicate::EQ, int_val, zero, "not")
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
+                            })?;
                         Ok(result.into())
                     }
                     BasicValueEnum::FloatValue(float_val) => {
                         // For float values, compare with 0.0
                         let zero = float_val.get_type().const_zero();
-                        let result = self.builder.build_float_compare(
-                            inkwell::FloatPredicate::OEQ,
-                            float_val,
-                            zero,
-                            "not"
-                        ).map_err(|e| {
-                            IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
-                        })?;
+                        let result = self
+                            .builder
+                            .build_float_compare(
+                                inkwell::FloatPredicate::OEQ,
+                                float_val,
+                                zero,
+                                "not",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!("Failed to build not: {}", e))
+                            })?;
                         Ok(result.into())
                     }
                     _ => Err(IRGenError::TypeMismatch(
@@ -1397,13 +1783,39 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
                     }
                     BasicValueEnum::FloatValue(float_val) => {
                         // Convert float to int, apply bitwise not, then convert back to float
-                        let int_val = self.builder.build_float_to_signed_int(float_val, self.type_mapping.get_int_type(), "f2i")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Float to int conversion failed: {}", e)))?;
-                        let not_result = self.builder.build_not(int_val, "bitnot").map_err(|e| {
-                            IRGenError::InvalidOperation(format!("Failed to build bitnot: {}", e))
-                        })?;
-                        let float_result = self.builder.build_signed_int_to_float(not_result, self.type_mapping.get_number_type(), "i2f")
-                            .map_err(|e| IRGenError::InvalidOperation(format!("Int to float conversion failed: {}", e)))?;
+                        let int_val = self
+                            .builder
+                            .build_float_to_signed_int(
+                                float_val,
+                                self.type_mapping.get_int_type(),
+                                "f2i",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Float to int conversion failed: {}",
+                                    e
+                                ))
+                            })?;
+                        let not_result =
+                            self.builder.build_not(int_val, "bitnot").map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Failed to build bitnot: {}",
+                                    e
+                                ))
+                            })?;
+                        let float_result = self
+                            .builder
+                            .build_signed_int_to_float(
+                                not_result,
+                                self.type_mapping.get_number_type(),
+                                "i2f",
+                            )
+                            .map_err(|e| {
+                                IRGenError::InvalidOperation(format!(
+                                    "Int to float conversion failed: {}",
+                                    e
+                                ))
+                            })?;
                         Ok(float_result.into())
                     }
                     _ => Err(IRGenError::TypeMismatch(
@@ -1536,70 +1948,106 @@ impl<'ctx> Visitor<IRGenResult<BasicValueEnum<'ctx>>> for IRGenerator<'ctx> {
             // Ternary operator
             Expr::Ternary(cond, then_expr, else_expr) => {
                 let cond_value = self.visit_expr(cond)?;
-                
-                let current_fn = self.current_function.ok_or_else(|| 
-                    IRGenError::InvalidOperation("Ternary operator outside function".to_string()))?;
-                
+
+                let current_fn = self.current_function.ok_or_else(|| {
+                    IRGenError::InvalidOperation("Ternary operator outside function".to_string())
+                })?;
+
                 let then_block = self.context.append_basic_block(current_fn, "ternary_then");
                 let else_block = self.context.append_basic_block(current_fn, "ternary_else");
                 let merge_block = self.context.append_basic_block(current_fn, "ternary_merge");
-                
+
                 // Convert condition to i1 if needed
                 let cond_i1 = match cond_value {
                     BasicValueEnum::IntValue(int_val) => {
                         if int_val.get_type() == self.type_mapping.get_bool_type() {
                             int_val
                         } else {
-                            self.builder.build_int_compare(
-                                inkwell::IntPredicate::NE, 
-                                int_val, 
-                                int_val.get_type().const_zero(), 
-                                "tobool"
-                            ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert to bool: {}", e)))?
+                            self.builder
+                                .build_int_compare(
+                                    inkwell::IntPredicate::NE,
+                                    int_val,
+                                    int_val.get_type().const_zero(),
+                                    "tobool",
+                                )
+                                .map_err(|e| {
+                                    IRGenError::InvalidOperation(format!(
+                                        "Failed to convert to bool: {}",
+                                        e
+                                    ))
+                                })?
                         }
-                    },
-                    BasicValueEnum::FloatValue(float_val) => {
-                        self.builder.build_float_compare(
+                    }
+                    BasicValueEnum::FloatValue(float_val) => self
+                        .builder
+                        .build_float_compare(
                             inkwell::FloatPredicate::ONE,
                             float_val,
                             float_val.get_type().const_zero(),
-                            "tobool"
-                        ).map_err(|e| IRGenError::InvalidOperation(format!("Failed to convert float to bool: {}", e)))?
-                    },
-                    _ => return Err(IRGenError::TypeMismatch("Invalid condition type".to_string())),
+                            "tobool",
+                        )
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!(
+                                "Failed to convert float to bool: {}",
+                                e
+                            ))
+                        })?,
+                    _ => {
+                        return Err(IRGenError::TypeMismatch(
+                            "Invalid condition type".to_string(),
+                        ));
+                    }
                 };
-                
-                self.builder.build_conditional_branch(cond_i1, then_block, else_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build conditional branch: {}", e)))?;
-                
+
+                self.builder
+                    .build_conditional_branch(cond_i1, then_block, else_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!(
+                            "Failed to build conditional branch: {}",
+                            e
+                        ))
+                    })?;
+
                 // Generate then block
                 self.builder.position_at_end(then_block);
                 let then_value = self.visit_expr(then_expr)?;
-                self.builder.build_unconditional_branch(merge_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
                 let then_end_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Generate else block
                 self.builder.position_at_end(else_block);
                 let else_value = self.visit_expr(else_expr)?;
-                self.builder.build_unconditional_branch(merge_block)
-                    .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build branch: {}", e)))?;
+                self.builder
+                    .build_unconditional_branch(merge_block)
+                    .map_err(|e| {
+                        IRGenError::InvalidOperation(format!("Failed to build branch: {}", e))
+                    })?;
                 let else_end_block = self.builder.get_insert_block().unwrap();
-                
+
                 // Merge block
                 self.builder.position_at_end(merge_block);
-                
+
                 // Create phi node if values are compatible
                 if then_value.get_type() == else_value.get_type() {
-                    let phi = self.builder.build_phi(then_value.get_type(), "ternaryphi")
-                        .map_err(|e| IRGenError::InvalidOperation(format!("Failed to build phi: {}", e)))?;
-                    phi.add_incoming(&[(&then_value, then_end_block), (&else_value, else_end_block)]);
+                    let phi = self
+                        .builder
+                        .build_phi(then_value.get_type(), "ternaryphi")
+                        .map_err(|e| {
+                            IRGenError::InvalidOperation(format!("Failed to build phi: {}", e))
+                        })?;
+                    phi.add_incoming(&[
+                        (&then_value, then_end_block),
+                        (&else_value, else_end_block),
+                    ]);
                     Ok(phi.as_basic_value())
                 } else {
                     Ok(then_value)
                 }
             }
-
         }
     }
 }

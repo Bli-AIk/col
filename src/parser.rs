@@ -3,8 +3,6 @@ pub mod func;
 pub mod func_def;
 pub mod program;
 pub mod stmt;
-#[cfg(test)]
-mod test;
 pub mod top_level;
 pub mod visitor;
 

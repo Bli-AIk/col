@@ -1,0 +1,4 @@
+mod codegen_comprehensive_test;
+mod codegen_test;
+mod parser_test;
+mod symbol_table_builder_tests;

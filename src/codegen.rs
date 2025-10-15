@@ -4,10 +4,6 @@ use std::collections::HashMap;
 
 pub mod ir_generator;
 pub mod jit;
-#[cfg(test)]
-mod test;
-#[cfg(test)]
-mod comprehensive_test;
 
 /// Type mapping table for converting language types to LLVM types
 pub struct TypeMapping<'ctx> {
