@@ -3,6 +3,9 @@ use inkwell::types::*;
 use std::collections::HashMap;
 
 pub mod ir_generator;
+pub mod ir_generator_helpers;
+pub mod ir_generator_visit_expr;
+pub mod ir_generator_visit_stmt;
 pub mod jit;
 
 /// Type mapping table for converting language types to LLVM types

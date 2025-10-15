@@ -7,9 +7,9 @@ entry:
   store double 1.000000e+01, ptr %x, align 8
   %y = alloca double, align 8
   store double 5.000000e+00, ptr %y, align 8
-  %y1 = load double, ptr %y, align 8
-  %x2 = load double, ptr %x, align 8
-  %fadd = fadd double %x2, %y1
+  %x1 = load double, ptr %x, align 8
+  %y2 = load double, ptr %y, align 8
+  %fadd = fadd double %x1, %y2
   store double %fadd, ptr %x, align 8
   %y3 = load double, ptr %y, align 8
   %fsub = fsub double %y3, 2.000000e+00
@@ -49,77 +49,77 @@ entry:
   %e = alloca double, align 8
   store double %i2f17, ptr %e, align 8
   %a18 = load double, ptr %a, align 8
-  %f2i = fptosi double %a18 to i32
-  %bitnot = xor i32 %f2i, -1
-  %i2f19 = sitofp i32 %bitnot to double
+  %f2i_bitnot = fptosi double %a18 to i32
+  %bitnot = xor i32 %f2i_bitnot, -1
+  %i2f_bitnot = sitofp i32 %bitnot to double
   %f = alloca double, align 8
-  store double %i2f19, ptr %f, align 8
+  store double %i2f_bitnot, ptr %f, align 8
   %i = alloca double, align 8
   store double 0.000000e+00, ptr %i, align 8
-  %i20 = load double, ptr %i, align 8
-  %fadd21 = fadd double %i20, 1.000000e+00
-  store double %fadd21, ptr %i, align 8
-  %i22 = load double, ptr %i, align 8
-  %fadd23 = fadd double %i22, 1.000000e+00
-  store double %fadd23, ptr %i, align 8
-  %i24 = load double, ptr %i, align 8
-  %fsub25 = fsub double %i24, 1.000000e+00
-  store double %fsub25, ptr %i, align 8
-  %i26 = load double, ptr %i, align 8
-  %fsub27 = fsub double %i26, 1.000000e+00
-  store double %fsub27, ptr %i, align 8
-  %x28 = load double, ptr %x, align 8
-  %y29 = load double, ptr %y, align 8
-  %fgt = fcmp ogt double %x28, %y29
+  %i19 = load double, ptr %i, align 8
+  %fadd20 = fadd double %i19, 1.000000e+00
+  store double %fadd20, ptr %i, align 8
+  %i21 = load double, ptr %i, align 8
+  %fadd22 = fadd double %i21, 1.000000e+00
+  store double %fadd22, ptr %i, align 8
+  %i23 = load double, ptr %i, align 8
+  %fsub24 = fsub double %i23, 1.000000e+00
+  store double %fsub24, ptr %i, align 8
+  %i25 = load double, ptr %i, align 8
+  %fsub26 = fsub double %i25, 1.000000e+00
+  store double %fsub26, ptr %i, align 8
+  %x27 = load double, ptr %x, align 8
+  %y28 = load double, ptr %y, align 8
+  %fgt = fcmp ogt double %x27, %y28
   br i1 %fgt, label %ternary_then, label %ternary_else
 
 ternary_then:                                     ; preds = %entry
-  %x30 = load double, ptr %x, align 8
+  %x29 = load double, ptr %x, align 8
   br label %ternary_merge
 
 ternary_else:                                     ; preds = %entry
-  %y31 = load double, ptr %y, align 8
+  %y30 = load double, ptr %y, align 8
   br label %ternary_merge
 
 ternary_merge:                                    ; preds = %ternary_else, %ternary_then
-  %ternaryphi = phi double [ %x30, %ternary_then ], [ %y31, %ternary_else ]
+  %ternaryphi = phi double [ %x29, %ternary_then ], [ %y30, %ternary_else ]
   %max = alloca double, align 8
   store double %ternaryphi, ptr %max, align 8
-  %x32 = load double, ptr %x, align 8
-  %y33 = load double, ptr %y, align 8
-  %feq = fcmp oeq double %x32, %y33
+  %x31 = load double, ptr %x, align 8
+  %y32 = load double, ptr %y, align 8
+  %feq = fcmp oeq double %x31, %y32
   %isEqual = alloca i1, align 1
   store i1 %feq, ptr %isEqual, align 1
-  %x34 = load double, ptr %x, align 8
-  %y35 = load double, ptr %y, align 8
-  %fne = fcmp one double %x34, %y35
+  %x33 = load double, ptr %x, align 8
+  %y34 = load double, ptr %y, align 8
+  %fne = fcmp one double %x33, %y34
   %isNotEqual = alloca i1, align 1
   store i1 %fne, ptr %isNotEqual, align 1
-  %x36 = load double, ptr %x, align 8
-  %y37 = load double, ptr %y, align 8
-  %fgt38 = fcmp ogt double %x36, %y37
+  %x35 = load double, ptr %x, align 8
+  %y36 = load double, ptr %y, align 8
+  %fgt37 = fcmp ogt double %x35, %y36
   %isGreater = alloca i1, align 1
-  store i1 %fgt38, ptr %isGreater, align 1
-  %isEqual39 = load i1, ptr %isEqual, align 1
-  br i1 %isEqual39, label %and_rhs, label %and_merge
+  store i1 %fgt37, ptr %isGreater, align 1
+  %isEqual38 = load i1, ptr %isEqual, align 1
+  br i1 %isEqual38, label %and_rhs, label %and_merge
 
 and_rhs:                                          ; preds = %ternary_merge
-  %isNotEqual40 = load i1, ptr %isNotEqual, align 1
+  %isNotEqual39 = load i1, ptr %isNotEqual, align 1
   br label %and_merge
 
 and_merge:                                        ; preds = %and_rhs, %ternary_merge
-  %and_result = phi i1 [ false, %ternary_merge ], [ %isNotEqual40, %and_rhs ]
+  %and_result = phi i1 [ false, %ternary_merge ], [ %isNotEqual39, %and_rhs ]
   %both = alloca i1, align 1
   store i1 %and_result, ptr %both, align 1
-  %isEqual41 = load i1, ptr %isEqual, align 1
-  br i1 %isEqual41, label %or_merge, label %or_rhs
+  %isEqual40 = load i1, ptr %isEqual, align 1
+  br i1 %isEqual40, label %or_merge, label %or_rhs
 
 or_rhs:                                           ; preds = %and_merge
-  %isNotEqual42 = load i1, ptr %isNotEqual, align 1
+  %isNotEqual41 = load i1, ptr %isNotEqual, align 1
   br label %or_merge
 
 or_merge:                                         ; preds = %or_rhs, %and_merge
-  %or_result = phi i1 [ true, %and_merge ], [ %isNotEqual42, %or_rhs ]
+  %or_result = phi i1 [ true, %and_merge ], [ %isNotEqual41, %or_rhs ]
   %either = alloca i1, align 1
   store i1 %or_result, ptr %either, align 1
   ret double 0.000000e+00
