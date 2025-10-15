@@ -16,7 +16,7 @@ mod tests {
         });
         let stream =
             Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
-        
+
         match program_parser().parse(stream).into_result() {
             Ok(p) => p,
             Err(errs) => panic!("Parse failed for source '{}': {:?}", src, errs),
@@ -28,27 +28,41 @@ mod tests {
         let program = parse_gml(src);
         let context = Context::create();
         let mut ir_generator = IRGenerator::new(&context, "test_module");
-        
+
         // Generate IR
-        program.accept(&mut ir_generator).map_err(|e| format!("IR generation failed: {:?}", e))?;
-        
+        program
+            .accept(&mut ir_generator)
+            .map_err(|e| format!("IR generation failed: {:?}", e))?;
+
         // Verify module
-        ir_generator.get_module().verify().map_err(|e| format!("Module verification failed: {}", e))?;
-        
+        ir_generator
+            .get_module()
+            .verify()
+            .map_err(|e| format!("Module verification failed: {}", e))?;
+
         // Execute with JIT
         let executor = JITExecutor::new(ir_generator.get_module())?;
         executor.execute_main()
     }
 
     /// Helper function to compile and execute a function by name
-    fn compile_and_execute_function(src: &str, func_name: &str, args: &[f64]) -> Result<f64, String> {
+    fn compile_and_execute_function(
+        src: &str,
+        func_name: &str,
+        args: &[f64],
+    ) -> Result<f64, String> {
         let program = parse_gml(src);
         let context = Context::create();
         let mut ir_generator = IRGenerator::new(&context, "test_module");
-        
-        program.accept(&mut ir_generator).map_err(|e| format!("IR generation failed: {:?}", e))?;
-        ir_generator.get_module().verify().map_err(|e| format!("Module verification failed: {}", e))?;
-        
+
+        program
+            .accept(&mut ir_generator)
+            .map_err(|e| format!("IR generation failed: {:?}", e))?;
+        ir_generator
+            .get_module()
+            .verify()
+            .map_err(|e| format!("Module verification failed: {}", e))?;
+
         let executor = JITExecutor::new(ir_generator.get_module())?;
         executor.execute_function(func_name, args)
     }

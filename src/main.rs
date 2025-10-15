@@ -241,10 +241,13 @@ fn execute_test_functions(executor: &codegen::jit::JITExecutor) {
             println!("{} {}", "test_short_circuit() returned:".green(), result);
         }
         Err(e) => {
-            println!("{}", format!("test_short_circuit execution failed: {}", e).yellow());
+            println!(
+                "{}",
+                format!("test_short_circuit execution failed: {}", e).yellow()
+            );
         }
     }
-    
+
     // Try to execute the test_loops function if it exists
     match executor.execute_function("test_loops", &[]) {
         Ok(result) => {
