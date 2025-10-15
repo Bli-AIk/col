@@ -10,6 +10,10 @@ use inkwell::types::*;
 use inkwell::values::*;
 use std::collections::HashMap;
 
+pub mod ir_helpers;
+pub mod visit_expr;
+pub mod visit_stmt;
+
 /// Error types for IR generation
 #[derive(Debug)]
 pub enum IRGenError {

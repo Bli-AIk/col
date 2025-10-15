@@ -1,4 +1,4 @@
-use super::ir_generator::{IRGenError, IRGenResult, IRGenerator};
+use crate::codegen::ir_generator::{IRGenError, IRGenResult, IRGenerator};
 use crate::parser::expr::Expr;
 use inkwell::values::*;
 
