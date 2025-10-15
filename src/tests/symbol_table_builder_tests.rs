@@ -1,25 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::parser::program::Program;
-    use crate::parser::program_parser;
     use crate::parser::visitor::Visitor;
     use crate::parser::visitor::symbol_table_builder::{Scope, Symbol, SymbolTableBuilder};
-    use crate::token::Token;
-    use chumsky::{input::Stream, prelude::*};
-    use logos::Logos;
-
-    fn parse_gml(src: &str) -> Program {
-        let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
-            Ok(tok) => (tok, span.into()),
-            Err(_) => (Token::Error, span.into()),
-        });
-        let stream =
-            Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
-        match program_parser().parse(stream).into_result() {
-            Ok(p) => p,
-            Err(errs) => panic!("Parse failed: {:?}", errs),
-        }
-    }
+    use crate::tests::tests_helper::*;
 
     #[test]
     fn test_basic_variable_and_function_symbols() {

@@ -2,26 +2,13 @@
 mod tests {
     use crate::parser::expr::Expr;
     use crate::parser::func_def::FuncDef;
-    use crate::parser::program::Program;
     use crate::parser::program_parser;
     use crate::parser::stmt::Stmt;
     use crate::parser::top_level::TopLevel;
+    use crate::tests::tests_helper::*;
     use crate::token::Token;
     use chumsky::{input::Stream, prelude::*};
     use logos::Logos;
-
-    fn parse_ok(src: &str) -> Program {
-        let token_iter = Token::lexer(src).spanned().map(|(tok, span)| match tok {
-            Ok(tok) => (tok, span.into()),
-            Err(_) => (Token::Error, span.into()),
-        });
-        let stream =
-            Stream::from_iter(token_iter).map((0..src.len()).into(), |(t, s): (_, _)| (t, s));
-        match program_parser().parse(stream).into_result() {
-            Ok(p) => p,
-            Err(errs) => panic!("Parse failed: {:?}", errs),
-        }
-    }
 
     #[test]
     fn program_and_top_level_with_function_and_statement() {
@@ -30,7 +17,7 @@ mod tests {
         function foo(a, b) { return a + b; }
         x = foo(2, 3)
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 3);
         assert!(matches!(p.body[0], TopLevel::Statement(Stmt::Var(_))));
         assert!(matches!(p.body[1], TopLevel::Function(_)));
@@ -40,7 +27,7 @@ mod tests {
     #[test]
     fn block_and_terminators_expr_stmt() {
         let src = "{ 1+2; 3\n 4;;;; }\n";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let block = match &p.body[0] {
             TopLevel::Statement(Stmt::Block(block)) => block,
@@ -55,7 +42,7 @@ mod tests {
     #[test]
     fn var_stmt_and_variable_decl_list() {
         let src = "var a=1, b, c=2\n";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         match &p.body[0] {
             TopLevel::Statement(Stmt::Var(vars)) => {
                 assert_eq!(vars.len(), 3);
@@ -77,7 +64,7 @@ mod tests {
         if 0 then x = 3 else x = 4;
         if 1 x = 5 else { x = 6; }
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 3);
 
         // if (1) { x = 2; }
@@ -124,7 +111,7 @@ mod tests {
         if 1 var a=1 else { }
         if 1 x = 1 else y = 2
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 4);
         assert!(matches!(&p.body[0], TopLevel::Statement(Stmt::If(_, _, _))));
         assert!(matches!(&p.body[1], TopLevel::Statement(Stmt::If(_, _, _))));
@@ -135,7 +122,7 @@ mod tests {
     #[test]
     fn return_break_continue_with_terminators() {
         let src = "return\n break; continue\n";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 3);
         assert!(matches!(
             &p.body[0],
@@ -153,7 +140,7 @@ mod tests {
         while 1 x++;
         do x++; until(0);
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 4);
         assert!(matches!(
             &p.body[0],
@@ -174,7 +161,7 @@ mod tests {
         for (x = 0; x < 1; ) { }
         for (; ; ) break;
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 3);
 
         // for (var i = 0; i < 3; i++) x += i;
@@ -228,7 +215,7 @@ mod tests {
         a = 1;
         a += 2; a -= 3; a *= 4; a /= 5; a %= 6;
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 6);
         assert!(matches!(
             &p.body[0],
@@ -265,7 +252,7 @@ mod tests {
         1 < 2 <= 2 == 2 != 3 > 1 >= 0;
         (1 + 2) * 3 / 4 % 2 - +1;
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 5);
         assert!(matches!(
             &p.body[0],
@@ -295,7 +282,7 @@ mod tests {
         !~+-1;
         ++x; --y; x++; y--;
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 5);
         assert!(matches!(
             &p.body[0],
@@ -326,14 +313,14 @@ mod tests {
         foo(); bar(1, 2, 3);
         (1 + 2) * 3;
     "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 10);
     }
 
     #[test]
     fn chained_assignment() {
         let src = "a = b = 1;";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let expr = match &p.body[0] {
             TopLevel::Statement(Stmt::Expr(expr)) => expr,
@@ -348,7 +335,7 @@ mod tests {
     #[test]
     fn nested_ternary() {
         let src = "1 ? 2 : 3 ? 4 : 5;";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let expr = match &p.body[0] {
             TopLevel::Statement(Stmt::Expr(expr)) => expr,
@@ -363,7 +350,7 @@ mod tests {
     #[test]
     fn nested_nested_ternary() {
         let src = "1 ? 2 : 3 ? 4 : 5 ? 6 : 7;";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let expr = match &p.body[0] {
             TopLevel::Statement(Stmt::Expr(expr)) => expr,
@@ -381,7 +368,7 @@ mod tests {
     #[test]
     fn function_no_params_and_empty_block() {
         let src = "function bar() { }\n";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         match &p.body[0] {
             TopLevel::Function(FuncDef { name, func }) => {
@@ -396,7 +383,7 @@ mod tests {
     #[test]
     fn for_with_compound_update() {
         let src = "for (var i = 0; i < 3; i += 1) x += i;";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         match &p.body[0] {
             TopLevel::Statement(Stmt::For(_, _, post, _)) => {
@@ -413,7 +400,7 @@ mod tests {
     #[test]
     fn mixed_prefix_postfix_in_expressions() {
         let src = "a = ++b + --c * d++;";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let expr = match &p.body[0] {
             TopLevel::Statement(Stmt::Expr(expr)) => expr,
@@ -425,7 +412,7 @@ mod tests {
     #[test]
     fn postfix_in_call_argument() {
         let src = "foo(id++);";
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 1);
         let expr = match &p.body[0] {
             TopLevel::Statement(Stmt::Expr(expr)) => expr,
@@ -520,7 +507,7 @@ mod tests {
 
             var total = sum_and_map(1, 2);
         "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 3);
         assert!(matches!(p.body[0], TopLevel::Function(_)));
         assert!(matches!(p.body[1], TopLevel::Function(_)));
@@ -548,7 +535,7 @@ mod tests {
                 return null;
             }
         "#;
-        let p = parse_ok(src);
+        let p = parse_program(src);
         assert_eq!(p.body.len(), 5);
     }
 }
