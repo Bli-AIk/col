@@ -108,6 +108,12 @@ jobs:
         brew install llvm@18
         echo "/opt/homebrew/opt/llvm@18/bin" >> $GITHUB_PATH
         echo "LLVM_SYS_180_PREFIX=/opt/homebrew/opt/llvm@18" >> $GITHUB_ENV
+
+    - name: 🚨 Set Custom Linker (macOS Fix)
+      if: matrix.os == 'macos-latest'
+      run: |
+        echo "CC=/opt/homebrew/opt/llvm@18/bin/clang" >> $GITHUB_ENV
+        echo "CXX=/opt/homebrew/opt/llvm@18/bin/clang++" >> $GITHUB_ENV
     
     - name: Install LLVM 18 (Windows)
       if: matrix.os == 'windows-latest'
