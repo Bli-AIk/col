@@ -1,11 +1,9 @@
 pub mod expr;
-mod func;
-mod func_def;
-mod program;
-mod stmt;
-#[cfg(test)]
-mod test;
-mod top_level;
+pub mod func;
+pub mod func_def;
+pub mod program;
+pub mod stmt;
+pub mod top_level;
 pub mod visitor;
 
 use crate::parser::expr::Expr;

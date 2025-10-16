@@ -22,24 +22,32 @@ jobs:
           - nightly
     steps:
     - uses: actions/checkout@v5
+
+    - name: Install LLVM 18
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+        sudo apt-get install -y llvm-18-dev libclang-18-dev libpolly-18-dev
+        echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ matrix.rust }}
-        
+
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-        
+
     - name: Cache cargo index
       uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-        
+
     - name: Cache cargo build
       uses: actions/cache@v4
       with:
@@ -49,17 +57,18 @@ jobs:
     - name: Check formatting
       run: cargo fmt --all -- --check
       if: matrix.rust == 'stable'
-      
+
     - name: Run clippy
       run: cargo clippy --all-targets --all-features
-      # -- -D warnings
       if: matrix.rust == 'stable'
-      
+
     - name: Build
       run: cargo build --verbose
-      
+
     - name: Run tests
       run: cargo test --verbose
+
+---
 
   build:
     name: Build
@@ -79,50 +88,90 @@ jobs:
             asset_name: col-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
+            arm_target: aarch64-apple-darwin
             artifact_name: col
-            asset_name: col-macos-x86_64
+            asset_name: col-macos-universal
 
     steps:
     - uses: actions/checkout@v5
+
+    - name: Install LLVM 18 (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+        sudo apt-get install -y llvm-18-dev libclang-18-dev libpolly-18-dev
+        echo "LLVM_SYS_180_PREFIX=/usr/lib/llvm-18" >> $GITHUB_ENV
+    
+    - name: Install LLVM 18 & Rust Targets (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install llvm@18
+        LLVM_PATH=$(brew --prefix llvm@18)
+        echo "LLVM_SYS_180_PREFIX=$LLVM_PATH" >> $GITHUB_ENV
+        rustup target add x86_64-apple-darwin aarch64-apple-darwin
+        echo "CC=$LLVM_PATH/bin/clang" >> $GITHUB_ENV
+        echo "CXX=$LLVM_PATH/bin/clang++" >> $GITHUB_ENV
+
+    - name: Install LLVM 18 (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install llvm --version=18.1.8 --allow-downgrade
+        echo "LLVM_SYS_180_PREFIX=C:\Program Files\LLVM" >> $env:GITHUB_ENV
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
-        targets: ${{ matrix.target }}
-        
+        targets: ${{ matrix.os != 'macos-latest' && matrix.target || '' }}
+
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
         path: ~/.cargo/registry
         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-        
+
     - name: Cache cargo index
       uses: actions/cache@v4
       with:
         path: ~/.cargo/git
         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-        
+
     - name: Cache cargo build
       uses: actions/cache@v4
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Build release
+    - name: Build release (Linux/Windows)
+      if: matrix.os != 'macos-latest'
       run: cargo build --release --target ${{ matrix.target }}
-      
+
+    - name: Build and Combine (macOS Universal Binary)
+      if: matrix.os == 'macos-latest'
+      run: |
+        cargo build --release --target ${{ matrix.target }}
+        cargo build --release --target ${{ matrix.arm_target }}
+        lipo -create \
+             target/${{ matrix.target }}/release/${{ matrix.artifact_name }} \
+             target/${{ matrix.arm_target }}/release/${{ matrix.artifact_name }} \
+             -output target/release/${{ matrix.asset_name }}
+        echo "FINAL_ARTIFACT_PATH=target/release/${{ matrix.asset_name }}" >> $GITHUB_ENV
+        echo "FINAL_ARTIFACT_NAME=${{ matrix.asset_name }}" >> $GITHUB_ENV
+    
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
-        path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        name: ${{ env.FINAL_ARTIFACT_NAME || matrix.asset_name }}
+        path: ${{ env.FINAL_ARTIFACT_PATH || format('target/{0}/release/{1}', matrix.target, matrix.artifact_name) }}
+
+---
 
   security:
     name: Security Audit
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     steps:
-    - uses: actions/checkout@v5
     - uses: rustsec/audit-check@v1.4.1
       with:
         token: ${{ secrets.GITHUB_TOKEN }}

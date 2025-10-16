@@ -88,7 +88,7 @@ pub fn colorize_brackets(input: &str) -> String {
         }
     }
 
-    (flush_buf)(&mut buf, &mut out, depth, &colors);
+    flush_buf(&mut buf, &mut out, depth, &colors);
 
     out
 }
