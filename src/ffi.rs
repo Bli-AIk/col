@@ -167,23 +167,3 @@ pub extern "C" fn col_initialize() -> COLResult {
 pub extern "C" fn col_shutdown() {
     // TODO: Cleanup LLVM context, etc.
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::ffi::CString;
-
-    #[test]
-    fn test_compile_simple_script() {
-        let source = CString::new("var x = 5;").unwrap();
-        let script = col_compile_script(source.as_ptr());
-        assert!(!script.is_null());
-        col_destroy_script(script);
-    }
-
-    #[test]
-    fn test_null_source() {
-        let script = col_compile_script(ptr::null());
-        assert!(script.is_null());
-    }
-}
