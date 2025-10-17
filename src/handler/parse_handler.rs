@@ -31,7 +31,7 @@ impl ParseHandler {
         println!();
         match program_parser().parse(token_stream).into_result() {
             Ok(program) => {
-                crate::output_handler::OutputHandler::display_ast(&program);
+                crate::handler::output_handler::OutputHandler::display_ast(&program);
                 Ok(program)
             }
             Err(errs) => {

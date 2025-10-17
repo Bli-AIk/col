@@ -10,6 +10,6 @@ impl SymbolTableHandler {
         let mut builder = visitor::symbol_table_builder::SymbolTableBuilder::new(&mut root_scope);
         program.accept(&mut builder);
 
-        crate::output_handler::OutputHandler::display_symbol_table(&root_scope);
+        crate::handler::output_handler::OutputHandler::display_symbol_table(&root_scope);
     }
 }

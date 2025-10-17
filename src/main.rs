@@ -4,13 +4,13 @@ use output_handler::*;
 use parse_handler::*;
 use symbol_table_handler::*;
 
-mod codegen;
-mod parser;
-mod token;
-mod utils;
-
-mod handler;
-mod tests;
+pub mod codegen;
+pub mod ffi;
+pub mod handler;
+pub mod parser;
+pub mod tests;
+pub mod token;
+pub mod utils; // Add FFI module
 
 fn main() {
     let path = "ComplexTest.gml";

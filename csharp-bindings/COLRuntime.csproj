@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <RootNamespace>COL.Runtime</RootNamespace>
+    <AssemblyName>COLRuntime</AssemblyName>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../target/debug/libcol_runtime.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Unix'" />
+    <None Include="../target/debug/col_runtime.dll" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Windows_NT'" />
+  </ItemGroup>
+
+</Project>

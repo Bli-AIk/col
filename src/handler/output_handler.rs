@@ -54,6 +54,6 @@ impl OutputHandler {
         println!("{}", ir_string);
 
         // Save IR to file
-        crate::file_handler::FileHandler::save_ir_to_file(&ir_string);
+        crate::handler::file_handler::FileHandler::save_ir_to_file(&ir_string);
     }
 }

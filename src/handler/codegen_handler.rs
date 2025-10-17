@@ -17,7 +17,7 @@ impl CodeGenHandler {
                 println!("{}", "IR Generation completed successfully!".green());
 
                 // Display and save generated IR
-                crate::output_handler::OutputHandler::display_and_save_ir(&ir_generator);
+                crate::handler::output_handler::OutputHandler::display_and_save_ir(&ir_generator);
 
                 // Verify and execute the module
                 Self::verify_and_execute_module(&ir_generator);
