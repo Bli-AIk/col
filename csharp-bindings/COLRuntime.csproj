@@ -17,8 +17,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="../target/debug/libcol_runtime.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Unix'" />
-    <None Include="../target/debug/col_runtime.dll" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Windows_NT'" />
+    <None Include="../target/release/libcol_runtime.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Unix'" />
+    <None Include="../target/release/col_runtime.dll" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Windows_NT'" />
+    <None Include="libcol_runtime.so" CopyToOutputDirectory="PreserveNewest" Condition="'$(OS)' == 'Unix'" />
+    <None Include="Sample.gml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

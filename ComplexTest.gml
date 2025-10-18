@@ -52,3 +52,5 @@ function test_loops() {
     
     return count;
 }
+
+return 2025;

@@ -11,9 +11,10 @@ pub mod utils;
 
 // Re-export key types for library users
 pub use ffi::{
-    COLResult, COLScript, COLValue, COLVariant, col_call_function, col_compile_script,
+    COLResult, COLScript, COLValue, COLVariant, PrintCallback, col_call_function, col_compile_script,
     col_destroy_script, col_free_string, col_get_global_variable, col_get_last_error,
-    col_initialize, col_set_global_variable, col_shutdown,
+    col_get_script_error, col_initialize, col_print, col_print_boolean, col_print_number,
+    col_register_print_callback, col_set_global_variable, col_shutdown,
 };
 
 pub use parser::{expr::Expr, program::Program, stmt::Stmt};

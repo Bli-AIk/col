@@ -59,6 +59,11 @@ impl<'ctx> IRGenerator<'ctx> {
         }
     }
 
+    /// Get a reference to the LLVM module
+    pub fn get_module(&self) -> &Module<'ctx> {
+        &self.module
+    }
+
     /// Enter a function context
     pub fn enter_function(&mut self, function: FunctionValue<'ctx>) {
         self.current_function = Some(function);

@@ -122,7 +122,7 @@ or_merge:                                         ; preds = %or_rhs, %and_merge
   %or_result = phi i1 [ true, %and_merge ], [ %isNotEqual41, %or_rhs ]
   %either = alloca i1, align 1
   store i1 %or_result, ptr %either, align 1
-  ret double 0.000000e+00
+  ret double 2.025000e+03
 }
 
 define double @test_loops() {

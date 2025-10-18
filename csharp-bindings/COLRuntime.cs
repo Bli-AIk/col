@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -85,6 +86,25 @@ namespace COL.Runtime
         [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr col_get_last_error();
 
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr col_get_script_error(IntPtr script);
+
+        // Print functionality imports
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate void PrintCallback([MarshalAs(UnmanagedType.LPStr)] string message);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern void col_register_print_callback(PrintCallback callback);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern COLResult col_print([MarshalAs(UnmanagedType.LPStr)] string message);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern COLResult col_print_number(double value);
+
+        [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
+        private static extern COLResult col_print_boolean(int value);
+
         #endregion
 
         #region Private Fields
@@ -122,6 +142,38 @@ namespace COL.Runtime
                 return null;
             
             return Marshal.PtrToStringAnsi(errorPtr);
+        }
+
+        /// <summary>
+        /// Register a print callback function
+        /// </summary>
+        public static void RegisterPrintCallback(PrintCallback callback)
+        {
+            col_register_print_callback(callback);
+        }
+
+        /// <summary>
+        /// Send a print message to the COL runtime
+        /// </summary>
+        public static COLResult Print(string message)
+        {
+            return col_print(message);
+        }
+
+        /// <summary>
+        /// Send a number value to the COL runtime print system
+        /// </summary>
+        public static COLResult Print(double value)
+        {
+            return col_print_number(value);
+        }
+
+        /// <summary>
+        /// Send a boolean value to the COL runtime print system
+        /// </summary>
+        public static COLResult Print(bool value)
+        {
+            return col_print_boolean(value ? 1 : 0);
         }
 
         /// <summary>
@@ -198,6 +250,24 @@ namespace COL.Runtime
                 return null;
 
             return ConvertFromCOLVariant(result);
+        }
+
+        /// <summary>
+        /// Get the last error message from this script
+        /// </summary>
+        public string GetScriptError()
+        {
+            if (disposed)
+                throw new ObjectDisposedException(nameof(COLRuntime));
+
+            if (scriptHandle == IntPtr.Zero)
+                return null;
+
+            IntPtr errorPtr = col_get_script_error(scriptHandle);
+            if (errorPtr == IntPtr.Zero)
+                return null;
+
+            return Marshal.PtrToStringAnsi(errorPtr);
         }
 
         #endregion
@@ -294,7 +364,7 @@ namespace COL.Runtime
     }
 
     /// <summary>
-    /// Example usage of the COL runtime
+    /// Example usage of the COL runtime with print functionality
     /// </summary>
     public class Program
     {
@@ -309,47 +379,177 @@ namespace COL.Runtime
 
             try
             {
+                // Register print service
+                COLPrintService.RegisterPrintService();
+                
+                // Subscribe to print events
+                COLPrintService.OnPrintReceived += (message) =>
+                {
+                    Console.WriteLine($"GML Output: {message}");
+                };
+
                 using (var runtime = new COLRuntime())
                 {
-                    // Compile a simple GML script
-                    string gmlCode = @"
-                        var x = 5;
-                        function test_func(a) {
-                            return a + 3;
-                        }
-                    ";
+                    // Test C# side printing
+                    Console.WriteLine("=== Testing C# Print Service ===");
+                    COLPrintService.Print("Hello from C#!");
+                    COLPrintService.Print(42.5);
+                    COLPrintService.Print(true);
+                    COLPrintService.Print(new { name = "test", value = 123 });
+
+                    Console.WriteLine("\n=== Loading and Executing Sample.gml ===");
+
+                    // Read GML code from Sample.gml file
+                    string gmlCode;
+                    try
+                    {
+                        gmlCode = File.ReadAllText("Sample.gml");
+                        Console.WriteLine($"Successfully loaded Sample.gml ({gmlCode.Length} characters)");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Failed to read Sample.gml: {ex.Message}");
+                        Console.WriteLine("Using fallback GML code...");
+                        gmlCode = @"
+                            var x = 5;
+                            var y = 10;
+                            function add(a, b) {
+                                return a + b;
+                            }
+                            function multiply(a, b) {
+                                return a * b;
+                            }
+                        ";
+                    }
 
                     if (runtime.CompileScript(gmlCode))
                     {
-                        Console.WriteLine("Script compiled successfully!");
+                        Console.WriteLine("GML script compiled successfully!");
 
-                        // Try to call a function
+                        // Test global variable operations
+                        Console.WriteLine("\n=== Testing Global Variables ===");
+                        
+                        // Set some variables from C#
+                        runtime.SetGlobalVariable("csharpValue", 123.456);
+                        runtime.SetGlobalVariable("fromCsharp", "Greetings from C#!");
+                        runtime.SetGlobalVariable("csharpBoolean", true);
+                        runtime.SetGlobalVariable("pi", 3.14159);
+
+                        var csharpValue = runtime.GetGlobalVariable("csharpValue");
+                        var fromCsharp = runtime.GetGlobalVariable("fromCsharp");
+                        var csharpBoolean = runtime.GetGlobalVariable("csharpBoolean");
+                        var pi = runtime.GetGlobalVariable("pi");
+
+                        Console.WriteLine($"csharpValue: {csharpValue}");
+                        Console.WriteLine($"fromCsharp: {fromCsharp}");
+                        Console.WriteLine($"csharpBoolean: {csharpBoolean}");
+                        Console.WriteLine($"pi: {pi}");
+
+                        // Test function calls
+                        Console.WriteLine("\n=== Testing Function Calls ===");
                         try
                         {
-                            var result = runtime.CallFunction("test_func");
-                            Console.WriteLine($"Function result: {result}");
+                            // Test basic arithmetic functions
+                            var addResult = runtime.CallFunction("add", 15, 25);
+                            Console.WriteLine($"add(15, 25) = {addResult}");
+
+                            var subtractResult = runtime.CallFunction("subtract", 20, 8);
+                            Console.WriteLine($"subtract(20, 8) = {subtractResult}");
+
+                            var multiplyResult = runtime.CallFunction("multiply", 6, 7);
+                            Console.WriteLine($"multiply(6, 7) = {multiplyResult}");
+
+                            var divideResult = runtime.CallFunction("divide", 24, 4);
+                            Console.WriteLine($"divide(24, 4) = {divideResult}");
+
+                            // Test more complex functions
+                            var calculateResult = runtime.CallFunction("calculate", 5, 3);
+                            Console.WriteLine($"calculate(5, 3) = {calculateResult}");
+
+                            var mathDemoResult = runtime.CallFunction("mathDemo", 10);
+                            Console.WriteLine($"mathDemo(10) = {mathDemoResult}");
+
+                            // Test logic functions
+                            var logicResult1 = runtime.CallFunction("logicTest", 10, 5);
+                            var logicResult2 = runtime.CallFunction("logicTest", 3, 8);
+                            Console.WriteLine($"logicTest(10, 5) = {logicResult1}");
+                            Console.WriteLine($"logicTest(3, 8) = {logicResult2}");
+
+                            var isPositiveResult1 = runtime.CallFunction("isPositive", 5);
+                            var isPositiveResult2 = runtime.CallFunction("isPositive", -3);
+                            Console.WriteLine($"isPositive(5) = {isPositiveResult1}");
+                            Console.WriteLine($"isPositive(-3) = {isPositiveResult2}");
+
+                            // Test min/max functions
+                            var maxResult = runtime.CallFunction("max", 10, 15);
+                            var minResult = runtime.CallFunction("min", 10, 15);
+                            Console.WriteLine($"max(10, 15) = {maxResult}");
+                            Console.WriteLine($"min(10, 15) = {minResult}");
+
+                            // Test mathematical functions
+                            var squareResult = runtime.CallFunction("square", 8);
+                            Console.WriteLine($"square(8) = {squareResult}");
+
+                            var cubeResult = runtime.CallFunction("cube", 4);
+                            Console.WriteLine($"cube(4) = {cubeResult}");
+
+                            var rectangleAreaResult = runtime.CallFunction("rectangleArea", 5, 8);
+                            Console.WriteLine($"rectangleArea(5, 8) = {rectangleAreaResult}");
+
+                            var absoluteResult1 = runtime.CallFunction("absolute", -15);
+                            var absoluteResult2 = runtime.CallFunction("absolute", 15);
+                            Console.WriteLine($"absolute(-15) = {absoluteResult1}");
+                            Console.WriteLine($"absolute(15) = {absoluteResult2}");
+
+                            // Test utility functions
+                            var testResult = runtime.CallFunction("testFunction");
+                            Console.WriteLine($"testFunction() = {testResult}");
+
+                            var sumThreeResult = runtime.CallFunction("sumThree", 10, 20, 30);
+                            Console.WriteLine($"sumThree(10, 20, 30) = {sumThreeResult}");
+
+                            var powerOfTwoResult = runtime.CallFunction("powerOfTwo", 4);
+                            Console.WriteLine($"powerOfTwo(4) = {powerOfTwoResult}");
                         }
                         catch (Exception ex)
                         {
                             Console.WriteLine($"Function call failed: {ex.Message}");
+                            string scriptError = runtime.GetScriptError();
+                            if (scriptError != null)
+                                Console.WriteLine($"Script error: {scriptError}");
                         }
 
-                        // Try to set and get variables
-                        runtime.SetGlobalVariable("myVar", 42.0);
-                        var value = runtime.GetGlobalVariable("myVar");
-                        Console.WriteLine($"Global variable myVar: {value}");
+                        // Test print functionality
+                        Console.WriteLine("\n=== Testing Print Functionality ===");
+                        COLRuntime.Print("Direct print from C# runtime");
+                        COLRuntime.Print(2.71828);
+                        COLRuntime.Print(false);
+
+                        // Show final state of variables
+                        Console.WriteLine("\n=== Final Variable States ===");
+                        var finalPi = runtime.GetGlobalVariable("pi");
+                        var finalMessage = runtime.GetGlobalVariable("fromCsharp");
+                        Console.WriteLine($"Final pi value: {finalPi}");
+                        Console.WriteLine($"Final message: {finalMessage}");
                     }
                     else
                     {
-                        Console.WriteLine("Failed to compile script");
+                        Console.WriteLine("Failed to compile GML script");
                         string error = COLRuntime.GetLastError();
                         if (error != null)
                             Console.WriteLine($"Error: {error}");
+                            
+                        string scriptError = runtime.GetScriptError();
+                        if (scriptError != null)
+                            Console.WriteLine($"Script error: {scriptError}");
                     }
                 }
             }
             finally
             {
+                // Cleanup print service
+                COLPrintService.UnregisterPrintService();
+                
                 // Shutdown the runtime
                 COLRuntime.Shutdown();
             }

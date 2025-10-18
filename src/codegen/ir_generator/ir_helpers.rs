@@ -141,11 +141,6 @@ impl<'ctx> IRGenerator<'ctx> {
         }
     }
 
-    /// Get module reference
-    pub fn get_module(&self) -> &inkwell::module::Module<'ctx> {
-        &self.module
-    }
-
     /// Convert a value to match the expected function return type
     pub fn convert_to_return_type(
         &self,
